@@ -1,0 +1,1558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mirascope Research Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0b0c;
+    --panel: #131517;
+    --panel2: #1a1d20;
+    --panel3: #22262a;
+    --border: rgba(255,255,255,0.06);
+    --border2: rgba(255,255,255,0.12);
+    --border3: rgba(255,255,255,0.20);
+    --text: #e8e6e0;
+    --text2: #a8a59c;
+    --muted: #6b6862;
+    --accent: #1D9E75;
+    --accent-bg: rgba(29,158,117,0.12);
+    --warn: #D85A30;
+    --warn-bg: rgba(216,90,48,0.14);
+    --good: #1D9E75;
+    --bad: #D54545;
+    --bad-bg: rgba(213,69,69,0.14);
+    --info: #5294D8;
+    --focal: #B79CF0;
+    --object: #E8B847;
+    --image: #5BC990;
+    --viewer: #5294D8;
+    --r: #FF5566;
+    --g: #44CC88;
+    --b: #5599FF;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --display: 'Syne', sans-serif;
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 12px; line-height: 1.5; }
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* ── Header ─────────────────────────────────────────── */
+  header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    background: var(--panel);
+  }
+  header h1 { font-family: var(--display); font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+  header .tag { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 8px; border: 1px solid var(--border2); border-radius: 3px; }
+
+  .preset-bar { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+  .preset-btn {
+    background: var(--panel2);
+    border: 1px solid var(--border2);
+    color: var(--text2);
+    font-family: inherit;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .preset-btn:hover { color: var(--text); border-color: var(--border3); background: var(--panel3); }
+  .preset-btn.active { background: var(--accent-bg); color: var(--accent); border-color: rgba(29,158,117,0.3); }
+
+  /* ── Layout ─────────────────────────────────────────── */
+  .app { display: grid; grid-template-columns: 280px 1fr 290px; flex: 1; overflow: hidden; }
+
+  .panel-left, .panel-right {
+    overflow-y: auto;
+    background: var(--panel);
+  }
+  .panel-left { border-right: 1px solid var(--border); padding: 14px; }
+  .panel-right { border-left: 1px solid var(--border); padding: 14px; }
+  .main { display: flex; flex-direction: column; padding: 14px; gap: 8px; min-width: 0; overflow: hidden; }
+
+  /* ── Form controls ──────────────────────────────────── */
+  .group { margin-bottom: 16px; }
+  .group:last-child { margin-bottom: 0; }
+  .group-header {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 8px; padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .group-header .badge {
+    font-size: 9px; padding: 1px 5px; border-radius: 3px; letter-spacing: 0.05em;
+    background: var(--panel3); color: var(--text2);
+  }
+  .group-header .badge.m1 { color: #ec8a5b; background: rgba(216,90,48,0.12); }
+  .group-header .badge.m2 { color: #6db5e8; background: rgba(82,148,216,0.12); }
+  .group-header .badge.geo { color: #b79cf0; background: rgba(183,156,240,0.12); }
+
+  .ctrl { margin-bottom: 9px; }
+  .ctrl-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; gap: 8px; }
+  .ctrl-label { color: var(--text); font-size: 11px; }
+  .ctrl-val {
+    font-size: 11px; color: var(--accent); font-weight: 500; min-width: 56px; text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 2px;
+    background: var(--border2); border-radius: 1px; outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--bg);
+    cursor: pointer; transition: transform 0.1s;
+  }
+  input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.25); }
+  input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); cursor: pointer; }
+
+  /* M1 vs M2 colored slider thumbs */
+  .ctrl[data-mirror="1"] input[type=range]::-webkit-slider-thumb { background: #D85A30; }
+  .ctrl[data-mirror="1"] .ctrl-val { color: #ec8a5b; }
+  .ctrl[data-mirror="2"] input[type=range]::-webkit-slider-thumb { background: #5294D8; }
+  .ctrl[data-mirror="2"] .ctrl-val { color: #6db5e8; }
+
+  .cb-row {
+    display: flex; align-items: center; gap: 7px;
+    padding: 4px 0; cursor: pointer;
+    color: var(--text2); font-size: 11px; transition: color 0.12s;
+    user-select: none;
+  }
+  .cb-row:hover { color: var(--text); }
+  .cb-row input[type=checkbox] {
+    -webkit-appearance: none; appearance: none;
+    width: 13px; height: 13px;
+    border: 1px solid var(--border3); border-radius: 3px;
+    background: transparent; cursor: pointer; position: relative; flex-shrink: 0;
+  }
+  .cb-row input[type=checkbox]:checked { background: var(--accent); border-color: var(--accent); }
+  .cb-row input[type=checkbox]:checked::after {
+    content: ''; position: absolute; left: 3px; top: 0px;
+    width: 4px; height: 8px;
+    border: 2px solid #000; border-top: none; border-left: none;
+    transform: rotate(45deg);
+  }
+
+  .seg {
+    display: flex; gap: 0; margin-bottom: 8px;
+    border: 1px solid var(--border2); border-radius: 4px; padding: 2px;
+    background: var(--panel2);
+  }
+  .seg button {
+    flex: 1; background: transparent; border: none;
+    color: var(--text2); font-family: inherit; font-size: 10.5px;
+    padding: 4px 6px; border-radius: 3px; cursor: pointer;
+    transition: all 0.12s;
+  }
+  .seg button:hover { color: var(--text); }
+  .seg button.active { background: var(--accent-bg); color: var(--accent); }
+
+  .link-toggle {
+    background: var(--panel2);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    padding: 6px 10px;
+    margin-bottom: 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; user-select: none;
+    font-size: 11px;
+    transition: all 0.12s;
+  }
+  .link-toggle:hover { border-color: var(--border3); }
+  .link-toggle.active { background: var(--accent-bg); border-color: rgba(29,158,117,0.4); color: var(--accent); }
+  .link-toggle .chain { font-size: 13px; }
+
+  /* ── Canvas ─────────────────────────────────────────── */
+  canvas {
+    display: block; width: 100%; flex: 1;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: #050608; min-height: 0; cursor: crosshair;
+  }
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 12px;
+    font-size: 10.5px; color: var(--muted);
+    padding: 4px 4px 0;
+  }
+  .li { display: flex; align-items: center; gap: 5px; }
+  .ll { width: 14px; height: 2px; border-radius: 1px; }
+  .ld { width: 14px; height: 0; border-top: 2px dashed; }
+  .lc { width: 7px; height: 7px; border-radius: 50%; }
+
+  /* ── Verdict panel ──────────────────────────────────── */
+  .verdict-card {
+    background: var(--panel2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+  .verdict-card.good { border-color: rgba(29,158,117,0.4); background: var(--accent-bg); }
+  .verdict-card.bad  { border-color: rgba(213,69,69,0.4); background: var(--bad-bg); }
+  .verdict-card.warn { border-color: rgba(216,90,48,0.4); background: var(--warn-bg); }
+
+  .verdict-title {
+    font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 5px;
+  }
+  .verdict-main {
+    font-size: 13px; font-weight: 600; margin-bottom: 4px;
+    display: flex; align-items: baseline; gap: 6px;
+  }
+  .verdict-main.good { color: var(--good); }
+  .verdict-main.bad  { color: var(--bad); }
+  .verdict-main.warn { color: var(--warn); }
+  .verdict-detail { font-size: 10.5px; color: var(--text2); line-height: 1.5; }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr; gap: 5px; }
+  .stat {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 4px 0;
+    border-bottom: 1px dashed var(--border);
+    font-size: 11px;
+  }
+  .stat:last-child { border-bottom: none; }
+  .stat-label { color: var(--text2); }
+  .stat-val { font-weight: 500; font-variant-numeric: tabular-nums; }
+  .stat-val.muted { color: var(--muted); }
+
+  .quality-bar {
+    height: 4px; background: var(--panel3); border-radius: 2px;
+    overflow: hidden; margin-top: 4px; position: relative;
+  }
+  .quality-bar-fill {
+    height: 100%; transition: width 0.2s, background 0.2s;
+    border-radius: 2px;
+  }
+
+  .formula {
+    font-family: var(--mono); font-size: 10.5px;
+    background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 4px; padding: 7px 9px;
+    color: var(--text2); margin-top: 8px; line-height: 1.7;
+  }
+  .formula .hi { color: var(--accent); font-weight: 500; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--panel3); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border3); }
+
+  @media (max-width: 980px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
+    .panel-left, .panel-right { max-height: 40vh; border: none; border-bottom: 1px solid var(--border); }
+    .panel-right { border-bottom: none; border-top: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Mirascope Research Simulator</h1>
+  <span class="tag">v1.0 · independent geometry · verdict engine</span>
+  <div class="preset-bar">
+    <button class="preset-btn" data-preset="classic">Classic</button>
+    <button class="preset-btn" data-preset="model2000">Mirage 2000</button>
+    <button class="preset-btn" data-preset="ref-e40">Ref E+40</button>
+    <button class="preset-btn" data-preset="asym">Asymmetric</button>
+    <button class="preset-btn" data-preset="raised">Raised image</button>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- ═════════════ LEFT PANEL: PARAMETERS ═════════════ -->
+  <aside class="panel-left">
+
+    <div class="link-toggle" id="linkToggle">
+      <span><span class="chain">⛓</span> &nbsp;Link mirrors (M1 = M2)</span>
+      <input type="checkbox" id="linkMirrors" style="display:none">
+      <span id="linkStatus" style="font-size:10px; color:var(--muted)">off</span>
+    </div>
+
+    <!-- Lower mirror M1 -->
+    <div class="group">
+      <div class="group-header">
+        <span>Lower mirror M1</span>
+        <span class="badge m1">M1</span>
+      </div>
+
+      <div class="ctrl" data-mirror="1">
+        <div class="ctrl-row"><span class="ctrl-label">Diameter D₁</span><span class="ctrl-val" id="vD1">280 mm</span></div>
+        <input type="range" id="sD1" min="60" max="500" step="2" value="280">
+      </div>
+      <div class="ctrl" data-mirror="1">
+        <div class="ctrl-row"><span class="ctrl-label">Focal length f₁</span><span class="ctrl-val" id="vf1">100 mm</span></div>
+        <input type="range" id="sf1" min="20" max="300" step="1" value="100">
+      </div>
+      <div class="ctrl" data-mirror="1">
+        <div class="ctrl-row"><span class="ctrl-label">Truncation (rim cut)</span><span class="ctrl-val" id="vT1">0 %</span></div>
+        <input type="range" id="sT1" min="0" max="50" step="1" value="0">
+      </div>
+      <div class="ctrl" data-mirror="1">
+        <div class="ctrl-row"><span class="ctrl-label">Reflectivity</span><span class="ctrl-val" id="vR1">95 %</span></div>
+        <input type="range" id="sR1" min="0" max="100" step="1" value="95">
+      </div>
+    </div>
+
+    <!-- Upper mirror M2 -->
+    <div class="group">
+      <div class="group-header">
+        <span>Upper mirror M2</span>
+        <span class="badge m2">M2</span>
+      </div>
+
+      <div class="ctrl" data-mirror="2">
+        <div class="ctrl-row"><span class="ctrl-label">Diameter D₂</span><span class="ctrl-val" id="vD2">280 mm</span></div>
+        <input type="range" id="sD2" min="60" max="500" step="2" value="280">
+      </div>
+      <div class="ctrl" data-mirror="2">
+        <div class="ctrl-row"><span class="ctrl-label">Focal length f₂</span><span class="ctrl-val" id="vf2">100 mm</span></div>
+        <input type="range" id="sf2" min="20" max="300" step="1" value="100">
+      </div>
+      <div class="ctrl" data-mirror="2">
+        <div class="ctrl-row"><span class="ctrl-label">Aperture A (top hole)</span><span class="ctrl-val" id="vA">62 mm</span></div>
+        <input type="range" id="sA" min="0" max="200" step="1" value="62">
+      </div>
+      <div class="ctrl" data-mirror="2">
+        <div class="ctrl-row"><span class="ctrl-label">Truncation (rim cut)</span><span class="ctrl-val" id="vT2">0 %</span></div>
+        <input type="range" id="sT2" min="0" max="50" step="1" value="0">
+      </div>
+      <div class="ctrl" data-mirror="2">
+        <div class="ctrl-row"><span class="ctrl-label">Reflectivity</span><span class="ctrl-val" id="vR2">95 %</span></div>
+        <input type="range" id="sR2" min="0" max="100" step="1" value="95">
+      </div>
+    </div>
+
+    <!-- Geometry -->
+    <div class="group">
+      <div class="group-header">
+        <span>Assembly geometry</span>
+        <span class="badge geo">GEO</span>
+      </div>
+
+      <div class="ctrl">
+        <div class="ctrl-row"><span class="ctrl-label">Vertex separation d_sep</span><span class="ctrl-val" id="vDsep">100 mm</span></div>
+        <input type="range" id="sDsep" min="20" max="600" step="1" value="100">
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-row"><span class="ctrl-label">M2 axis offset</span><span class="ctrl-val" id="vAxOff">0 mm</span></div>
+        <input type="range" id="sAxOff" min="-100" max="100" step="1" value="0">
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-row"><span class="ctrl-label">Object height above M1</span><span class="ctrl-val" id="vObjH">0 mm</span></div>
+        <input type="range" id="sObjH" min="-30" max="80" step="1" value="0">
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-row"><span class="ctrl-label">Object lateral offset</span><span class="ctrl-val" id="vObjX">0 mm</span></div>
+        <input type="range" id="sObjX" min="-50" max="50" step="1" value="0">
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ═════════════ CENTER: CANVAS ═════════════ -->
+  <main class="main">
+    <canvas id="c"></canvas>
+    <div class="legend">
+      <div class="li"><div class="ll" style="background:#1D9E75"></div> M1 surface</div>
+      <div class="li"><div class="ll" style="background:#5294D8"></div> M2 surface</div>
+      <div class="li"><div class="ll" style="background:#FF5566;width:5px"></div><div class="ll" style="background:#44CC88;width:5px"></div><div class="ll" style="background:#5599FF;width:5px"></div> RGB rays</div>
+      <div class="li"><div class="lc" style="background:#E8B847"></div> Object</div>
+      <div class="li"><div class="lc" style="background:#5BC990"></div> Image</div>
+      <div class="li"><div class="lc" style="background:#B79CF0"></div> Focal points</div>
+      <div class="li"><div class="lc" style="background:#5294D8"></div> Viewer (drag)</div>
+    </div>
+  </main>
+
+  <!-- ═════════════ RIGHT PANEL: VERDICT + DISPLAY ═════════════ -->
+  <aside class="panel-right">
+
+    <!-- Display options -->
+    <div class="group">
+      <div class="group-header"><span>Test mode</span></div>
+
+      <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Image-formation test</div>
+      <div class="seg" id="testModeSeg">
+        <button data-mode="exact" class="active">Exact ray-trace</button>
+        <button data-mode="matrix">Matrix optics</button>
+      </div>
+
+      <div style="font-size:10px;color:var(--muted);margin:8px 0 4px">Visibility test</div>
+      <div class="seg" id="viewModeSeg">
+        <button data-mode="point" class="active">Drag point</button>
+        <button data-mode="ring">45° ring</button>
+      </div>
+    </div>
+
+    <!-- Verdict cards -->
+    <div class="group">
+      <div class="group-header"><span>Verdict</span></div>
+
+      <div class="verdict-card" id="vcImage">
+        <div class="verdict-title">Image formation</div>
+        <div class="verdict-main" id="vcImageMain">—</div>
+        <div class="verdict-detail" id="vcImageDetail">—</div>
+      </div>
+
+      <div class="verdict-card" id="vcVis">
+        <div class="verdict-title">Visibility from viewer</div>
+        <div class="verdict-main" id="vcVisMain">—</div>
+        <div class="verdict-detail" id="vcVisDetail">—</div>
+      </div>
+
+      <div class="verdict-card" id="vcPeep">
+        <div class="verdict-title">Aperture peep risk</div>
+        <div class="verdict-main" id="vcPeepMain">—</div>
+        <div class="verdict-detail" id="vcPeepDetail">—</div>
+      </div>
+    </div>
+
+    <!-- Quality metrics -->
+    <div class="group">
+      <div class="group-header"><span>Quality metrics</span></div>
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-label">Image position (x, y)</span><span class="stat-val" id="qPos">—</span></div>
+        <div class="stat"><span class="stat-label">Magnification</span><span class="stat-val" id="qMag">—</span></div>
+        <div class="stat"><span class="stat-label">Aberration RMS</span><span class="stat-val" id="qAbb">—</span></div>
+        <div class="stat"><span class="stat-label">Ray success rate</span><span class="stat-val" id="qSucc">—</span></div>
+        <div class="stat"><span class="stat-label">Net brightness</span><span class="stat-val" id="qBright">—</span></div>
+      </div>
+      <div class="quality-bar"><div class="quality-bar-fill" id="qualityBar" style="width:0%;background:#666"></div></div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:center" id="qualityLabel">Quality score</div>
+    </div>
+
+    <!-- Derived -->
+    <div class="group">
+      <div class="group-header"><span>Derived geometry</span></div>
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-label">d₁ (M1 depth)</span><span class="stat-val" id="dD1">—</span></div>
+        <div class="stat"><span class="stat-label">d₂ (M2 depth)</span><span class="stat-val" id="dD2">—</span></div>
+        <div class="stat"><span class="stat-label">f-ratio M1</span><span class="stat-val" id="dFR1">—</span></div>
+        <div class="stat"><span class="stat-label">f-ratio M2</span><span class="stat-val" id="dFR2">—</span></div>
+        <div class="stat"><span class="stat-label">d_sep / f̄</span><span class="stat-val" id="dRatio">—</span></div>
+      </div>
+      <div class="formula">
+        Canonical mirascope: <span class="hi">f₁ = f₂ = d_sep</span><br>
+        Image at M2 vertex when this holds. Sweep to find where it breaks.
+      </div>
+    </div>
+
+  </aside>
+
+</div>
+
+<script>
+"use strict";
+
+// ═══════════════════════════════════════════════════════════════
+// CORE GEOMETRY
+// ═══════════════════════════════════════════════════════════════
+
+const $ = id => document.getElementById(id);
+const canvas = $('c');
+const ctx = canvas.getContext('2d');
+
+// Mutable state
+const S = {
+  D1: 280, f1: 100, T1: 0, R1: 95,
+  D2: 280, f2: 100, A: 62, T2: 0, R2: 95,
+  dSep: 100, axOff: 0, objH: 0, objX: 0,
+  link: false,
+  testMode: 'exact',     // 'exact' | 'matrix'
+  viewMode: 'point',     // 'point' | 'ring'
+  viewer: { x: 250, y: -120 },  // mm, in geometry coords (relative to canvas center)
+};
+
+const PRESETS = {
+  classic:    { D1:280, f1:100, T1:0, R1:95, D2:280, f2:100, A:62, T2:0, R2:95, dSep:100, axOff:0, objH:0, objX:0 },
+  model2000:  { D1:228, f1:80.6, T1:0, R1:90, D2:228, f2:80.6, A:62.5, T2:0, R2:90, dSep:80.6, axOff:0, objH:0, objX:0 },
+  'ref-e40':  { D1:280, f1:100, T1:0, R1:95, D2:280, f2:100, A:30, T2:0, R2:95, dSep:100, axOff:0, objH:0, objX:0 },
+  asym:       { D1:280, f1:80, T1:0, R1:95, D2:280, f2:120, A:50, T2:0, R2:95, dSep:100, axOff:0, objH:0, objX:0 },
+  raised:     { D1:280, f1:100, T1:0, R1:95, D2:280, f2:100, A:50, T2:0, R2:95, dSep:130, axOff:0, objH:5, objX:0 },
+};
+
+// ═══════════════════════════════════════════════════════════════
+// PARABOLA + RAY MATH
+// ═══════════════════════════════════════════════════════════════
+
+// Parabola: opens in +y direction with vertex at (vx, vy); equation y = vy + (x-vx)²/(4f)
+// For inverted (M2): opens in -y from vertex.
+//
+// We define mirrors with vertex positions in geometry coordinates:
+//   M1 vertex at (0, -dSep/2)            opens upward
+//   M2 vertex at (axOff, +dSep/2)         opens downward
+// Image cavity is between them (M2 above M1 in geometry coords with +y up).
+
+function paraY(x, vx, vy, f, opensUp) {
+  // returns y on parabola surface at horizontal coord x
+  const dx = x - vx;
+  return opensUp ? vy + (dx * dx) / (4 * f) : vy - (dx * dx) / (4 * f);
+}
+
+function paraNormal(x, vx, f, opensUp) {
+  // Surface tangent slope: dy/dx = (x-vx)/(2f), opensUp adds sign
+  // Normal points INTO cavity (toward focus side)
+  const slope = (x - vx) / (2 * f) * (opensUp ? 1 : -1);
+  // tangent vector (1, slope); normal rotated 90°: (-slope, 1)
+  // For opensUp, focus is above, so normal points up (positive y component)
+  // For opensDown (M2), focus is below, normal points down
+  const nx = -slope;
+  const ny = opensUp ? 1 : -1;
+  // normalize
+  const len = Math.hypot(nx, ny);
+  return { x: nx / len, y: ny / len };
+}
+
+function reflect(d, n) {
+  const dot = d.x * n.x + d.y * n.y;
+  return { x: d.x - 2 * dot * n.x, y: d.y - 2 * dot * n.y };
+}
+
+// Ray-parabola intersection.
+// Ray: P(t) = O + t·D    (parametric)
+// Parabola: y = vy + (x-vx)²/(4f)  (opensUp) or y = vy - (x-vx)²/(4f)  (opensDown)
+// Substitute and solve quadratic for t. Returns smallest t > tmin, or null.
+function intersectParabola(origin, dir, vx, vy, f, opensUp, tmin = 1e-4) {
+  const sgn = opensUp ? 1 : -1;
+  // (Ox + t*Dx - vx)² / (4f) = sgn * (Oy + t*Dy - vy)
+  // Let u = Ox - vx, v = Oy - vy
+  // (u + t*Dx)² = 4f * sgn * (v + t*Dy)
+  // u² + 2u*Dx*t + Dx²*t² = 4f*sgn*v + 4f*sgn*Dy*t
+  // Dx²*t² + (2u*Dx - 4f*sgn*Dy)*t + (u² - 4f*sgn*v) = 0
+  const u = origin.x - vx;
+  const v = origin.y - vy;
+  const A = dir.x * dir.x;
+  const B = 2 * u * dir.x - 4 * f * sgn * dir.y;
+  const C = u * u - 4 * f * sgn * v;
+
+  let candidates = [];
+  if (Math.abs(A) < 1e-10) {
+    // Linear: B*t + C = 0
+    if (Math.abs(B) > 1e-10) {
+      const t = -C / B;
+      if (t > tmin) candidates.push(t);
+    }
+  } else {
+    const disc = B * B - 4 * A * C;
+    if (disc < 0) return null;
+    const sq = Math.sqrt(disc);
+    const t1 = (-B - sq) / (2 * A);
+    const t2 = (-B + sq) / (2 * A);
+    if (t1 > tmin) candidates.push(t1);
+    if (t2 > tmin) candidates.push(t2);
+  }
+  if (candidates.length === 0) return null;
+  return Math.min(...candidates);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MIRROR ACTIVE-AREA TESTS
+// ═══════════════════════════════════════════════════════════════
+
+function isOnMirror(x, mirror, geom) {
+  // mirror: 1 (lower) or 2 (upper)
+  // active range: |x - vx| ≤ (D/2)*(1 - T/100), AND (for M2) |x - vx| ≥ A/2
+  if (mirror === 1) {
+    const halfActive = (geom.D1 / 2) * (1 - geom.T1 / 100);
+    const dx = Math.abs(x - 0);  // M1 vertex at x=0
+    return dx <= halfActive;
+  } else {
+    const halfActive = (geom.D2 / 2) * (1 - geom.T2 / 100);
+    const dx = Math.abs(x - geom.axOff);
+    return dx <= halfActive && dx >= geom.A / 2;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SINGLE-RAY TRACER (forward: object → M2 → M1 → out)
+// Returns the final outgoing ray segment list and outcome.
+// ═══════════════════════════════════════════════════════════════
+
+function traceRay(origin, dir, geom) {
+  // origin in geometry coords; dir is unit vector
+  const segments = [{ from: { ...origin }, to: null, kind: 'leg1' }];
+
+  // Leg 1: hit M2 first (typical mirascope: object emits upward, hits upper mirror)
+  // But ray could also escape upward through aperture if dir is steep enough.
+  // Strategy: find t where ray hits the M2 parabola surface, and the t where
+  // ray crosses the y=v2y line (aperture plane). If aperture crossing happens first
+  // AND the x there is within aperture, ray escapes.
+
+  const v1y = -geom.dSep / 2;  // M1 vertex y
+  const v2y = +geom.dSep / 2;  // M2 vertex y
+  const v2x = geom.axOff;
+
+  // Intersect with M2 parabola
+  const t_m2 = intersectParabola(origin, dir, v2x, v2y, geom.f2, false);
+  if (t_m2 === null) {
+    // Ray never hits M2 — escapes
+    segments[0].to = { x: origin.x + dir.x * 800, y: origin.y + dir.y * 800 };
+    return { segments, outcome: 'miss-m2', endpoint: segments[0].to };
+  }
+
+  const hit_m2 = { x: origin.x + dir.x * t_m2, y: origin.y + dir.y * t_m2 };
+  segments[0].to = { ...hit_m2 };
+
+  // Did ray pass through aperture before hitting M2?
+  // Aperture is at y = v2y, x in [v2x - A/2, v2x + A/2]
+  // (Only relevant for rays going upward through the aperture plane)
+  if (dir.y > 0 && origin.y < v2y) {
+    const t_apt = (v2y - origin.y) / dir.y;
+    if (t_apt > 0 && t_apt < t_m2) {
+      const x_apt = origin.x + dir.x * t_apt;
+      if (Math.abs(x_apt - v2x) < geom.A / 2) {
+        // Escaped through aperture
+        segments[0].to = { x: x_apt, y: v2y };
+        const escapePt = { x: origin.x + dir.x * 600, y: origin.y + dir.y * 600 };
+        segments.push({ from: { x: x_apt, y: v2y }, to: escapePt, kind: 'escape' });
+        return { segments, outcome: 'escape-aperture', endpoint: escapePt };
+      }
+    }
+  }
+
+  // Check if hit is on active M2 surface
+  if (!isOnMirror(hit_m2.x, 2, geom)) {
+    return { segments, outcome: 'm2-inactive', endpoint: hit_m2 };
+  }
+
+  // Reflect off M2
+  const n2 = paraNormal(hit_m2.x, v2x, geom.f2, false);
+  const refl1 = reflect(dir, n2);
+
+  // Leg 2: hit M1
+  const t_m1 = intersectParabola(hit_m2, refl1, 0, v1y, geom.f1, true);
+  if (t_m1 === null) {
+    const end = { x: hit_m2.x + refl1.x * 800, y: hit_m2.y + refl1.y * 800 };
+    segments.push({ from: { ...hit_m2 }, to: end, kind: 'leg2-miss' });
+    return { segments, outcome: 'miss-m1', endpoint: end };
+  }
+  const hit_m1 = { x: hit_m2.x + refl1.x * t_m1, y: hit_m2.y + refl1.y * t_m1 };
+  segments.push({ from: { ...hit_m2 }, to: { ...hit_m1 }, kind: 'leg2' });
+
+  if (!isOnMirror(hit_m1.x, 1, geom)) {
+    return { segments, outcome: 'm1-inactive', endpoint: hit_m1 };
+  }
+
+  // Reflect off M1
+  const n1 = paraNormal(hit_m1.x, 0, geom.f1, true);
+  const refl2 = reflect(refl1, n1);
+
+  // Leg 3: trace until it escapes (through aperture or otherwise)
+  // Find where this ray crosses y = v2y plane (aperture plane)
+  let endPt;
+  if (Math.abs(refl2.y) > 1e-6) {
+    const t_apt = (v2y - hit_m1.y) / refl2.y;
+    if (t_apt > 0) {
+      const x_at_apt = hit_m1.x + refl2.x * t_apt;
+      if (Math.abs(x_at_apt - v2x) < geom.A / 2) {
+        // Passes through aperture — extend further to show floating image region
+        const extra = 200;
+        endPt = { x: hit_m1.x + refl2.x * (t_apt + extra), y: hit_m1.y + refl2.y * (t_apt + extra) };
+        segments.push({ from: { ...hit_m1 }, to: endPt, kind: 'leg3-out' });
+        return { segments, outcome: 'success', endpoint: endPt, exitDir: refl2, exitPoint: { x: x_at_apt, y: v2y } };
+      } else {
+        // Hits the M2 mirror or its outer rim again
+        const t_m2b = intersectParabola(hit_m1, refl2, v2x, v2y, geom.f2, false);
+        if (t_m2b !== null) {
+          endPt = { x: hit_m1.x + refl2.x * t_m2b, y: hit_m1.y + refl2.y * t_m2b };
+          segments.push({ from: { ...hit_m1 }, to: endPt, kind: 'leg3-blocked' });
+          return { segments, outcome: 'blocked-m2', endpoint: endPt };
+        }
+      }
+    }
+  }
+
+  // Default: extend into space
+  endPt = { x: hit_m1.x + refl2.x * 600, y: hit_m1.y + refl2.y * 600 };
+  segments.push({ from: { ...hit_m1 }, to: endPt, kind: 'leg3-other' });
+  return { segments, outcome: 'lost', endpoint: endPt };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// IMAGE FORMATION TEST: trace many rays from the object, find where they converge.
+// ═══════════════════════════════════════════════════════════════
+
+function testImageFormation(geom) {
+  const objX = geom.objX;
+  const objY = -geom.dSep / 2 + geom.objH;
+  const obj = { x: objX, y: objY };
+
+  const N = 64;  // rays
+  const successfulRays = [];
+
+  // Sweep emission angles. Object emits in upper hemisphere (toward M2).
+  for (let i = 0; i < N; i++) {
+    const theta = (-Math.PI / 2) + Math.PI * (i / (N - 1));  // -π/2 to +π/2
+    // exclude near-vertical down (would never hit M2)
+    if (theta < -1.4 || theta > 1.4) continue;
+    const dir = { x: Math.sin(theta), y: Math.cos(theta) };
+    if (dir.y < 0.05) continue;  // skip nearly-horizontal
+
+    const result = traceRay(obj, dir, geom);
+    if (result.outcome === 'success') {
+      successfulRays.push({ origin: { ...result.exitPoint }, dir: result.exitDir, theta });
+    }
+  }
+
+  if (successfulRays.length < 2) {
+    return { exists: false, reason: 'insufficient-rays', successCount: successfulRays.length, totalRays: N };
+  }
+
+  // Find pairwise intersections of outgoing rays. Cluster gives image location.
+  const intersections = [];
+  for (let i = 0; i < successfulRays.length - 1; i++) {
+    for (let j = i + 1; j < successfulRays.length; j++) {
+      const ip = rayRayIntersect(successfulRays[i], successfulRays[j]);
+      if (ip) intersections.push(ip);
+    }
+  }
+
+  if (intersections.length < 1) {
+    return { exists: false, reason: 'parallel-rays', successCount: successfulRays.length, totalRays: N };
+  }
+
+  // Use median for robustness
+  const cx = median(intersections.map(p => p.x));
+  const cy = median(intersections.map(p => p.y));
+
+  // RMS deviation = aberration measure
+  const rms = Math.sqrt(intersections.reduce((s, p) => s + (p.x - cx) ** 2 + (p.y - cy) ** 2, 0) / intersections.length);
+
+  // Determine image location relative to aperture
+  const v2y = geom.dSep / 2;
+  let location;
+  if (cy > v2y + 5) location = 'above-aperture';
+  else if (cy > v2y - 5) location = 'at-aperture';
+  else location = 'below-aperture';
+
+  return {
+    exists: true,
+    position: { x: cx, y: cy },
+    aberration: rms,
+    location,
+    successCount: successfulRays.length,
+    totalRays: N,
+    rays: successfulRays,
+    allIntersections: intersections,
+  };
+}
+
+function rayRayIntersect(r1, r2) {
+  // r1: { origin, dir }, r2: same
+  const x1 = r1.origin.x, y1 = r1.origin.y;
+  const x2 = x1 + r1.dir.x, y2 = y1 + r1.dir.y;
+  const x3 = r2.origin.x, y3 = r2.origin.y;
+  const x4 = x3 + r2.dir.x, y4 = y3 + r2.dir.y;
+  const den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+  if (Math.abs(den) < 1e-9) return null;  // parallel
+  const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / den;
+  return { x: x1 + t * (x2 - x1), y: y1 + t * (y2 - y1) };
+}
+
+function median(arr) {
+  if (arr.length === 0) return 0;
+  const sorted = [...arr].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MATRIX OPTICS (paraxial)
+// ═══════════════════════════════════════════════════════════════
+
+function matMul(A, B) {
+  return [
+    [A[0][0]*B[0][0] + A[0][1]*B[1][0], A[0][0]*B[0][1] + A[0][1]*B[1][1]],
+    [A[1][0]*B[0][0] + A[1][1]*B[1][0], A[1][0]*B[0][1] + A[1][1]*B[1][1]]
+  ];
+}
+
+function matrixImageTest(geom) {
+  // System: object at (objX, v1y + objH).
+  // Forward path: drift from object to M2, reflect M2, drift to M1, reflect M1, drift to image plane.
+  // Object distance from M1 vertex: objH (small displacement)
+  // From object to M2 vertex (approx): dSep - objH
+  // After M2: drift dSep down, after M1: drift up to image plane
+  //
+  // A real image forms where the cumulative B element of the system matrix is zero.
+  // We look for the drift d3 (from M1 back up) such that B = 0.
+  //
+  // M(reflect, f) = [[1, 0], [-2/R, 1]] where R = 2f, so [[1,0],[-1/f, 1]]
+  // (actually the convention is [[1,0],[-1/f,1]] for thin element with focal length f)
+  // Drift d: [[1, d], [0, 1]]
+
+  const dr = d => [[1, d], [0, 1]];
+  const refl = f => [[1, 0], [-1/f, 1]];
+
+  // Object distance from upper mirror M2 vertex:
+  const d1 = geom.dSep - geom.objH;  // object → M2
+  // From M2 to M1: dSep
+  const d2 = geom.dSep;
+  // We'll find d3 such that B element of M_total = 0
+  // M_total(d3) = dr(d3) · refl(f1) · dr(d2) · refl(f2) · dr(d1)
+
+  let M = matMul(refl(geom.f2), dr(d1));
+  M = matMul(dr(d2), M);
+  M = matMul(refl(geom.f1), M);
+  // Now M is the system from object to just-after-M1. Add drift d3 next.
+  // M_with_d3 = dr(d3) · M
+  // [[1, d3], [0, 1]] · [[A, B], [C, D]] = [[A + d3·C, B + d3·D], [C, D]]
+  // We want B + d3·D = 0  →  d3 = -B/D
+  const A = M[0][0], B = M[0][1], C = M[1][0], D = M[1][1];
+
+  if (Math.abs(D) < 1e-9) {
+    return { exists: false, reason: 'rays-parallel-paraxial' };
+  }
+
+  const d3 = -B / D;
+
+  if (d3 < 0) {
+    return { exists: false, reason: 'image-virtual', d3 };
+  }
+
+  // Image position
+  const v1y = -geom.dSep / 2;
+  const imgY = v1y + d3;
+  const magnification = A + d3 * C;  // transverse magnification
+
+  return {
+    exists: true,
+    position: { x: geom.objX * magnification, y: imgY },
+    magnification,
+    d3,
+    aberration: 0,  // paraxial: zero aberration by definition
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VIEWER VISIBILITY (REVERSE TRACE)
+// ═══════════════════════════════════════════════════════════════
+
+function testVisibility(geom, viewerPos, imageResult) {
+  // Cast rays from viewer toward all reachable points on M2 active surface.
+  // For each, reflect off M2, then off M1, and see if path leads to object area.
+  if (!imageResult.exists) return { visible: false, reason: 'no-image' };
+
+  const obj = { x: geom.objX, y: -geom.dSep / 2 + geom.objH };
+  const objRadius = 8;  // mm — treat object as small finite disk
+
+  const v2y = geom.dSep / 2;
+  const v2x = geom.axOff;
+  const halfActive = (geom.D2 / 2) * (1 - geom.T2 / 100);
+
+  let hits = 0;
+  let attempts = 0;
+  const N = 30;
+  for (let i = 0; i < N; i++) {
+    const xT = v2x - halfActive + (2 * halfActive) * (i / (N - 1));
+    if (Math.abs(xT - v2x) < geom.A / 2) continue;  // through hole
+    const yT = paraY(xT, v2x, v2y, geom.f2, false);
+    const target = { x: xT, y: yT };
+
+    const dir = normalize({ x: target.x - viewerPos.x, y: target.y - viewerPos.y });
+    attempts++;
+
+    // Reverse trace: viewer → M2 (forward to find hit) → reflect → M1 → reflect → does it reach obj?
+    const t_m2 = intersectParabola(viewerPos, dir, v2x, v2y, geom.f2, false);
+    if (t_m2 === null) continue;
+    const hit_m2 = { x: viewerPos.x + dir.x * t_m2, y: viewerPos.y + dir.y * t_m2 };
+    if (!isOnMirror(hit_m2.x, 2, geom)) continue;
+
+    const n2 = paraNormal(hit_m2.x, v2x, geom.f2, false);
+    const refl1 = reflect(dir, n2);
+
+    const t_m1 = intersectParabola(hit_m2, refl1, 0, -geom.dSep/2, geom.f1, true);
+    if (t_m1 === null) continue;
+    const hit_m1 = { x: hit_m2.x + refl1.x * t_m1, y: hit_m2.y + refl1.y * t_m1 };
+    if (!isOnMirror(hit_m1.x, 1, geom)) continue;
+
+    const n1 = paraNormal(hit_m1.x, 0, geom.f1, true);
+    const refl2 = reflect(refl1, n1);
+
+    // Distance from this final ray's line to the object point
+    const distToObj = pointToLineDist(obj, hit_m1, refl2);
+    if (distToObj < objRadius) hits++;
+  }
+
+  return {
+    visible: hits > 0,
+    reason: hits > 0 ? 'reverse-trace-hits' : 'no-paths-to-object',
+    hitCount: hits,
+    attempts,
+    coverage: attempts > 0 ? hits / attempts : 0,
+  };
+}
+
+function pointToLineDist(p, lineOrigin, lineDir) {
+  const dx = p.x - lineOrigin.x, dy = p.y - lineOrigin.y;
+  // perpendicular distance from p to line through lineOrigin with direction lineDir
+  return Math.abs(dx * lineDir.y - dy * lineDir.x) / Math.hypot(lineDir.x, lineDir.y);
+}
+
+function normalize(v) {
+  const len = Math.hypot(v.x, v.y);
+  return { x: v.x / len, y: v.y / len };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// APERTURE PEEP TEST
+// Can the viewer see the object/interior directly through the aperture?
+// ═══════════════════════════════════════════════════════════════
+
+function testPeep(geom, viewerPos) {
+  const v2y = geom.dSep / 2;
+  const v1y = -geom.dSep / 2;
+  const v2x = geom.axOff;
+  const obj = { x: geom.objX, y: v1y + geom.objH };
+
+  // Direct line from viewer to object. Does it pass through the aperture cleanly?
+  const dir = normalize({ x: obj.x - viewerPos.x, y: obj.y - viewerPos.y });
+
+  // Check if line crosses aperture plane within the hole
+  if (Math.abs(dir.y) < 1e-6) return { peep: false, reason: 'horizontal' };
+  const t_apt = (v2y - viewerPos.y) / dir.y;
+  if (t_apt < 0) return { peep: false, reason: 'wrong-side' };
+
+  const x_at_apt = viewerPos.x + dir.x * t_apt;
+  if (Math.abs(x_at_apt - v2x) >= geom.A / 2) {
+    return { peep: false, reason: 'blocked-by-rim' };
+  }
+
+  // Also must not be blocked by M2 outer surface before reaching aperture
+  // (Not strictly needed since aperture is at the same plane as the rim)
+
+  return { peep: true, reason: 'direct-line', interceptX: x_at_apt };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDERING
+// ═══════════════════════════════════════════════════════════════
+
+let world = { scale: 1, originX: 0, originY: 0, dpr: 1 };
+
+function setupCoords() {
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth * dpr;
+  const H = canvas.clientHeight * dpr;
+  canvas.width = W;
+  canvas.height = H;
+
+  const totalW = Math.max(S.D1, S.D2) + 80;
+  const totalH = S.dSep + 200;  // include space above/below for rays
+  const scale = Math.min(W / totalW, H / totalH) * 0.85;
+  world = { scale, originX: W / 2, originY: H / 2, dpr };
+}
+
+function toScreen(p) {
+  return {
+    x: world.originX + p.x * world.scale,
+    y: world.originY - p.y * world.scale,  // flip y so +y is up
+  };
+}
+
+function fromScreen(sp) {
+  return {
+    x: (sp.x - world.originX) / world.scale,
+    y: -(sp.y - world.originY) / world.scale,
+  };
+}
+
+function clear() {
+  ctx.fillStyle = '#050608';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function drawAxes() {
+  const dpr = world.dpr;
+  ctx.strokeStyle = 'rgba(82,148,216,0.18)';
+  ctx.lineWidth = 1 * dpr;
+  ctx.setLineDash([6 * dpr, 5 * dpr]);
+
+  // vertical axis
+  ctx.beginPath();
+  ctx.moveTo(world.originX, 0);
+  ctx.lineTo(world.originX, canvas.height);
+  ctx.stroke();
+
+  // M2 vertical axis (offset)
+  if (Math.abs(S.axOff) > 0.5) {
+    const x2 = world.originX + S.axOff * world.scale;
+    ctx.strokeStyle = 'rgba(82,148,216,0.12)';
+    ctx.beginPath();
+    ctx.moveTo(x2, 0);
+    ctx.lineTo(x2, canvas.height);
+    ctx.stroke();
+  }
+
+  // horizontal mid plane
+  ctx.strokeStyle = 'rgba(82,148,216,0.10)';
+  ctx.beginPath();
+  ctx.moveTo(0, world.originY);
+  ctx.lineTo(canvas.width, world.originY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawMirrors() {
+  const dpr = world.dpr;
+  const v1y = -S.dSep / 2;
+  const v2y = +S.dSep / 2;
+  const v2x = S.axOff;
+
+  // M1 (lower, opens up)
+  drawParabolaSurface({
+    vx: 0, vy: v1y, f: S.f1, opensUp: true,
+    halfWidth: (S.D1 / 2) * (1 - S.T1 / 100),
+    halfWidthFull: S.D1 / 2,
+    aperture: 0,  // M1 has no hole
+    color: '#1D9E75',
+    fillColor: 'rgba(29,158,117,0.10)',
+    isM1: true,
+  });
+
+  // M2 (upper, opens down)
+  drawParabolaSurface({
+    vx: v2x, vy: v2y, f: S.f2, opensUp: false,
+    halfWidth: (S.D2 / 2) * (1 - S.T2 / 100),
+    halfWidthFull: S.D2 / 2,
+    aperture: S.A,
+    color: '#5294D8',
+    fillColor: 'rgba(82,148,216,0.10)',
+    isM1: false,
+  });
+
+  // Vertex markers
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  [{x:0,y:v1y},{x:v2x,y:v2y}].forEach(p => {
+    const s = toScreen(p);
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 2 * dpr, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function drawParabolaSurface({ vx, vy, f, opensUp, halfWidth, halfWidthFull, aperture, color, fillColor }) {
+  const dpr = world.dpr;
+  const N = 200;
+
+  // Draw the truncated active reflective region
+  const segments = [];
+  if (aperture > 0) {
+    // Two halves: left and right of aperture
+    segments.push({ from: -halfWidth, to: -aperture / 2 });
+    segments.push({ from: aperture / 2, to: halfWidth });
+  } else {
+    segments.push({ from: -halfWidth, to: halfWidth });
+  }
+
+  segments.forEach(seg => {
+    if (seg.to <= seg.from) return;
+    ctx.beginPath();
+    for (let i = 0; i <= N; i++) {
+      const x = vx + seg.from + ((seg.to - seg.from) * i) / N;
+      const y = paraY(x, vx, vy, f, opensUp);
+      const s = toScreen({ x, y });
+      i === 0 ? ctx.moveTo(s.x, s.y) : ctx.lineTo(s.x, s.y);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.2 * dpr;
+    ctx.stroke();
+  });
+
+  // Draw truncated regions in dimmer color
+  if (S.T1 !== 0 || S.T2 !== 0 || halfWidth < halfWidthFull) {
+    ctx.beginPath();
+    const truncStarts = [];
+    if (halfWidth < halfWidthFull) {
+      truncStarts.push({ from: -halfWidthFull, to: -halfWidth });
+      truncStarts.push({ from:  halfWidth,     to:  halfWidthFull });
+    }
+    truncStarts.forEach(seg => {
+      ctx.beginPath();
+      for (let i = 0; i <= N / 4; i++) {
+        const x = vx + seg.from + ((seg.to - seg.from) * i) / (N / 4);
+        const y = paraY(x, vx, vy, f, opensUp);
+        const s = toScreen({ x, y });
+        i === 0 ? ctx.moveTo(s.x, s.y) : ctx.lineTo(s.x, s.y);
+      }
+      ctx.strokeStyle = color.replace(')', ',0.25)').replace('rgb', 'rgba');
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.setLineDash([3 * dpr, 3 * dpr]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    });
+  }
+
+  // Aperture rim markers
+  if (aperture > 0) {
+    [-aperture / 2, aperture / 2].forEach(ax => {
+      const p = toScreen({ x: vx + ax, y: vy });
+      ctx.fillStyle = '#888';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.5 * dpr, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+}
+
+function drawFocalPoints() {
+  const dpr = world.dpr;
+  // M1 focus (above its vertex by f1)
+  const f1 = { x: 0, y: -S.dSep / 2 + S.f1 };
+  // M2 focus (below its vertex by f2)
+  const f2 = { x: S.axOff, y: S.dSep / 2 - S.f2 };
+
+  [
+    { p: f1, label: 'F₁' },
+    { p: f2, label: 'F₂' },
+  ].forEach(({ p, label }) => {
+    const s = toScreen(p);
+    // glow
+    const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, 18 * dpr);
+    g.addColorStop(0, 'rgba(183,156,240,0.4)');
+    g.addColorStop(1, 'rgba(183,156,240,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 18 * dpr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#B79CF0';
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 3.5 * dpr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = `${10 * dpr}px ${getComputedStyle(document.documentElement).getPropertyValue('--mono')}`;
+    ctx.fillStyle = 'rgba(183,156,240,0.85)';
+    ctx.textAlign = 'left';
+    ctx.fillText(label, s.x + 8 * dpr, s.y + 4 * dpr);
+  });
+}
+
+function drawObject() {
+  const dpr = world.dpr;
+  const obj = { x: S.objX, y: -S.dSep / 2 + S.objH };
+  const s = toScreen(obj);
+  const r = 5 * dpr;
+  ctx.fillStyle = '#E8B847';
+  ctx.beginPath();
+  ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,220,100,0.6)';
+  ctx.lineWidth = 1 * dpr;
+  ctx.stroke();
+
+  // label
+  ctx.fillStyle = 'rgba(232,184,71,0.85)';
+  ctx.font = `${9.5 * dpr}px ${getComputedStyle(document.documentElement).getPropertyValue('--mono')}`;
+  ctx.textAlign = 'center';
+  ctx.fillText('object', s.x, s.y + 14 * dpr);
+}
+
+function drawRays(imageResult) {
+  // Trace 3 RGB rays at fixed angles for visual clarity
+  const dpr = world.dpr;
+  const obj = { x: S.objX, y: -S.dSep / 2 + S.objH };
+  const colors = ['#FF5566', '#44CC88', '#5599FF'];
+  const angles = [-0.6, -0.3, 0.3];  // radians from vertical
+
+  // Draw a fan of all-color rays at varying angles to show ray bundle
+  const numFans = 5;
+  for (let i = 0; i < numFans; i++) {
+    const t = (i + 1) / (numFans + 1);
+    const theta = -0.85 + 1.7 * t;
+    const dir = { x: Math.sin(theta), y: Math.cos(theta) };
+    const result = traceRay(obj, dir, S);
+    drawRaySegments(result.segments, colors[i % 3], 0.5);
+  }
+
+  // Draw 3 prominent RGB rays
+  angles.forEach((theta, idx) => {
+    const dir = { x: Math.sin(theta), y: Math.cos(theta) };
+    const result = traceRay(obj, dir, S);
+    drawRaySegments(result.segments, colors[idx], 0.95);
+  });
+}
+
+function drawRaySegments(segments, color, alpha) {
+  const dpr = world.dpr;
+  segments.forEach((seg, i) => {
+    const a = toScreen(seg.from);
+    const b = toScreen(seg.to);
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = alpha * (seg.kind === 'leg2' ? 0.6 : 1);
+    ctx.lineWidth = (seg.kind.startsWith('leg3') ? 1.4 : 1.1) * dpr;
+    ctx.setLineDash(seg.kind === 'leg2' ? [4 * dpr, 3 * dpr] : []);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  });
+  ctx.globalAlpha = 1;
+}
+
+function drawImage(imageResult) {
+  if (!imageResult.exists) return;
+  const dpr = world.dpr;
+  const s = toScreen(imageResult.position);
+  const r = 7 * dpr;
+
+  // glow
+  const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, 22 * dpr);
+  g.addColorStop(0, 'rgba(91,201,144,0.45)');
+  g.addColorStop(1, 'rgba(91,201,144,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(s.x, s.y, 22 * dpr, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#5BC990';
+  ctx.beginPath();
+  ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(91,201,144,0.6)';
+  ctx.lineWidth = 1 * dpr;
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(91,201,144,0.95)';
+  ctx.font = `bold ${10 * dpr}px ${getComputedStyle(document.documentElement).getPropertyValue('--mono')}`;
+  ctx.textAlign = 'center';
+  ctx.fillText('IMAGE', s.x, s.y - 14 * dpr);
+
+  // Show aberration spread
+  if (imageResult.aberration && imageResult.aberration > 0.5) {
+    ctx.strokeStyle = 'rgba(216,90,48,0.4)';
+    ctx.lineWidth = 1 * dpr;
+    ctx.setLineDash([3 * dpr, 3 * dpr]);
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, imageResult.aberration * world.scale, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function drawViewer() {
+  const dpr = world.dpr;
+  if (S.viewMode === 'point') {
+    const s = toScreen(S.viewer);
+    ctx.fillStyle = '#5294D8';
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 6 * dpr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 1.5 * dpr;
+    ctx.stroke();
+
+    // sight line to image
+    ctx.strokeStyle = 'rgba(82,148,216,0.4)';
+    ctx.setLineDash([4 * dpr, 4 * dpr]);
+    ctx.lineWidth = 0.8 * dpr;
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y);
+    const tgt = toScreen({ x: S.axOff, y: S.dSep / 2 });
+    ctx.lineTo(tgt.x, tgt.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = 'rgba(82,148,216,0.85)';
+    ctx.font = `${9.5 * dpr}px ${getComputedStyle(document.documentElement).getPropertyValue('--mono')}`;
+    ctx.textAlign = 'left';
+    ctx.fillText('viewer (drag)', s.x + 10 * dpr, s.y + 4 * dpr);
+  } else {
+    // Ring at 45° around aperture at distance ~1.5 * dSep
+    const r = 1.5 * S.dSep;
+    const cy = S.dSep / 2;
+    ctx.strokeStyle = 'rgba(82,148,216,0.5)';
+    ctx.lineWidth = 1.2 * dpr;
+    ctx.setLineDash([6 * dpr, 4 * dpr]);
+    // 45° viewing angle = 45° above horizontal
+    const angle = Math.PI / 4;
+    const cone1 = { x: r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+    const cone2 = { x: -r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+    [cone1, cone2].forEach(p => {
+      const s = toScreen(p);
+      ctx.fillStyle = '#5294D8';
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 4 * dpr, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.setLineDash([]);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN UPDATE LOOP
+// ═══════════════════════════════════════════════════════════════
+
+function syncControls() {
+  // Read all sliders
+  S.D1 = +$('sD1').value; S.f1 = +$('sf1').value; S.T1 = +$('sT1').value; S.R1 = +$('sR1').value;
+  S.D2 = +$('sD2').value; S.f2 = +$('sf2').value; S.T2 = +$('sT2').value; S.R2 = +$('sR2').value;
+  S.A = +$('sA').value;
+  S.dSep = +$('sDsep').value; S.axOff = +$('sAxOff').value;
+  S.objH = +$('sObjH').value; S.objX = +$('sObjX').value;
+  S.link = $('linkMirrors').checked;
+
+  // Apply link
+  if (S.link) {
+    S.D2 = S.D1; $('sD2').value = S.D1;
+    S.f2 = S.f1; $('sf2').value = S.f1;
+    S.T2 = S.T1; $('sT2').value = S.T1;
+    S.R2 = S.R1; $('sR2').value = S.R1;
+  }
+
+  // Update labels
+  $('vD1').textContent = S.D1 + ' mm';
+  $('vf1').textContent = S.f1 + ' mm';
+  $('vT1').textContent = S.T1 + ' %';
+  $('vR1').textContent = S.R1 + ' %';
+  $('vD2').textContent = S.D2 + ' mm';
+  $('vf2').textContent = S.f2 + ' mm';
+  $('vA').textContent = S.A + ' mm';
+  $('vT2').textContent = S.T2 + ' %';
+  $('vR2').textContent = S.R2 + ' %';
+  $('vDsep').textContent = S.dSep + ' mm';
+  $('vAxOff').textContent = S.axOff + ' mm';
+  $('vObjH').textContent = S.objH + ' mm';
+  $('vObjX').textContent = S.objX + ' mm';
+  $('linkStatus').textContent = S.link ? 'on' : 'off';
+  $('linkToggle').classList.toggle('active', S.link);
+
+  // Derived
+  const d1 = (S.D1 * S.D1) / (16 * S.f1);
+  const d2 = (S.D2 * S.D2) / (16 * S.f2);
+  const fAvg = (S.f1 + S.f2) / 2;
+  $('dD1').textContent = d1.toFixed(1) + ' mm';
+  $('dD2').textContent = d2.toFixed(1) + ' mm';
+  $('dFR1').textContent = 'f/' + (S.f1 / S.D1).toFixed(2);
+  $('dFR2').textContent = 'f/' + (S.f2 / S.D2).toFixed(2);
+  $('dRatio').textContent = (S.dSep / fAvg).toFixed(3);
+}
+
+function updateVerdict(imageResult, visResult, peepResult) {
+  // Image formation card
+  const ic = $('vcImage');
+  const im = $('vcImageMain');
+  const id = $('vcImageDetail');
+  ic.className = 'verdict-card';
+  if (imageResult.exists) {
+    ic.classList.add(imageResult.aberration < 3 ? 'good' : 'warn');
+    im.className = 'verdict-main ' + (imageResult.aberration < 3 ? 'good' : 'warn');
+    im.textContent = '✓ Image forms';
+    let locText = imageResult.location || '';
+    if (locText === 'at-aperture') locText = 'at aperture plane';
+    else if (locText === 'above-aperture') locText = 'above aperture';
+    else if (locText === 'below-aperture') locText = 'inside cavity';
+    id.textContent = `${locText} · ${imageResult.successCount}/${imageResult.totalRays} rays converged`;
+  } else {
+    ic.classList.add('bad');
+    im.className = 'verdict-main bad';
+    im.textContent = '✗ No image';
+    const reasons = {
+      'insufficient-rays': 'Not enough rays survive the optical path. Aperture too small, mirrors mis-aligned, or vertex separation invalid.',
+      'parallel-rays': 'Rays exit parallel — image is at infinity. Vertex separation likely equals 2f.',
+      'rays-parallel-paraxial': 'Paraxial rays remain parallel. d_sep probably equals 2f̄.',
+      'image-virtual': 'Image is virtual (formed before M1). Try increasing d_sep.',
+    };
+    id.textContent = reasons[imageResult.reason] || imageResult.reason;
+  }
+
+  // Visibility card
+  const vc = $('vcVis');
+  const vm = $('vcVisMain');
+  const vd = $('vcVisDetail');
+  vc.className = 'verdict-card';
+  if (!imageResult.exists) {
+    vc.classList.add('bad');
+    vm.className = 'verdict-main bad';
+    vm.textContent = '— N/A';
+    vd.textContent = 'No image to view.';
+  } else if (visResult.visible) {
+    const cov = (visResult.coverage * 100).toFixed(0);
+    vc.classList.add(visResult.coverage > 0.3 ? 'good' : 'warn');
+    vm.className = 'verdict-main ' + (visResult.coverage > 0.3 ? 'good' : 'warn');
+    vm.textContent = '✓ Visible';
+    vd.textContent = `${visResult.hitCount}/${visResult.attempts} reverse-trace paths reach object · ${cov}% coverage`;
+  } else {
+    vc.classList.add('bad');
+    vm.className = 'verdict-main bad';
+    vm.textContent = '✗ Not visible';
+    vd.textContent = 'No reverse-trace path from viewer reaches the object area.';
+  }
+
+  // Peep card
+  const pc = $('vcPeep');
+  const pm = $('vcPeepMain');
+  const pd = $('vcPeepDetail');
+  pc.className = 'verdict-card';
+  if (peepResult.peep) {
+    pc.classList.add('warn');
+    pm.className = 'verdict-main warn';
+    pm.textContent = '⚠ Peep risk';
+    pd.textContent = 'Viewer has direct line-of-sight to object through aperture. The "man behind the curtain" is visible.';
+  } else {
+    pc.classList.add('good');
+    pm.className = 'verdict-main good';
+    pm.textContent = '✓ Hidden';
+    const r = peepResult.reason === 'blocked-by-rim' ? 'Aperture rim blocks direct line.' : 'Object hidden from this viewer.';
+    pd.textContent = r;
+  }
+
+  // Quality stats
+  if (imageResult.exists) {
+    $('qPos').textContent = `(${imageResult.position.x.toFixed(1)}, ${imageResult.position.y.toFixed(1)})`;
+    $('qMag').textContent = imageResult.magnification ? imageResult.magnification.toFixed(3) + '×' : 'computed';
+    $('qAbb').textContent = imageResult.aberration !== undefined ? imageResult.aberration.toFixed(2) + ' mm' : '—';
+    const succ = imageResult.successCount && imageResult.totalRays
+      ? ((imageResult.successCount / imageResult.totalRays) * 100).toFixed(0) + '%'
+      : '—';
+    $('qSucc').textContent = succ;
+
+    // Brightness = R1*R2 * success rate
+    const brightness = (S.R1 / 100) * (S.R2 / 100) * (imageResult.successCount / imageResult.totalRays);
+    $('qBright').textContent = (brightness * 100).toFixed(1) + '%';
+
+    // Quality score: combination
+    const sharpness = Math.max(0, 1 - (imageResult.aberration || 0) / 30);
+    const visBoost = visResult.visible ? Math.min(1, visResult.coverage * 2) : 0;
+    const peepPenalty = peepResult.peep ? 0.5 : 1;
+    const score = sharpness * brightness * (0.4 + 0.4 * visBoost) * peepPenalty;
+    const pct = Math.round(score * 100);
+    $('qualityBar').style.width = pct + '%';
+    $('qualityBar').style.background = pct > 60 ? '#1D9E75' : pct > 30 ? '#D85A30' : '#D54545';
+    $('qualityLabel').textContent = `Quality score: ${pct} / 100`;
+  } else {
+    $('qPos').textContent = '—';
+    $('qMag').textContent = '—';
+    $('qAbb').textContent = '—';
+    $('qSucc').textContent = '—';
+    $('qBright').textContent = '0%';
+    $('qualityBar').style.width = '0%';
+    $('qualityLabel').textContent = 'Quality score: 0 / 100';
+  }
+}
+
+function update() {
+  syncControls();
+  setupCoords();
+  clear();
+  drawAxes();
+
+  // Run tests
+  const imageResultExact = testImageFormation(S);
+  const imageResultMatrix = matrixImageTest(S);
+  const imageResult = S.testMode === 'matrix' ? imageResultMatrix : imageResultExact;
+  // Use exact for ray drawing always
+  drawRays();
+  drawMirrors();
+  drawFocalPoints();
+  drawObject();
+  drawImage(imageResult);
+
+  // Visibility
+  let viewerPos;
+  if (S.viewMode === 'ring') {
+    viewerPos = { x: 1.5 * S.dSep * Math.cos(Math.PI / 4), y: S.dSep / 2 + 1.5 * S.dSep * Math.sin(Math.PI / 4) };
+  } else {
+    viewerPos = S.viewer;
+  }
+  const visResult = testVisibility(S, viewerPos, imageResult);
+  const peepResult = testPeep(S, viewerPos);
+  drawViewer();
+
+  updateVerdict(imageResult, visResult, peepResult);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EVENT WIRING
+// ═══════════════════════════════════════════════════════════════
+
+['sD1','sf1','sT1','sR1','sD2','sf2','sA','sT2','sR2','sDsep','sAxOff','sObjH','sObjX']
+  .forEach(id => $(id).addEventListener('input', update));
+
+// Link toggle
+$('linkToggle').addEventListener('click', () => {
+  $('linkMirrors').checked = !$('linkMirrors').checked;
+  update();
+});
+
+// Test mode segmented
+$('testModeSeg').querySelectorAll('button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $('testModeSeg').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    S.testMode = btn.dataset.mode;
+    update();
+  });
+});
+
+// View mode segmented
+$('viewModeSeg').querySelectorAll('button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $('viewModeSeg').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    S.viewMode = btn.dataset.mode;
+    update();
+  });
+});
+
+// Preset buttons
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const p = PRESETS[btn.dataset.preset];
+    if (!p) return;
+    Object.entries(p).forEach(([k, v]) => {
+      const slider = $('s' + k.charAt(0).toUpperCase() + k.slice(1));
+      if (slider) slider.value = v;
+    });
+    update();
+  });
+});
+
+// Drag viewer
+let dragging = false;
+canvas.addEventListener('mousedown', (e) => {
+  if (S.viewMode !== 'point') return;
+  const rect = canvas.getBoundingClientRect();
+  const sx = (e.clientX - rect.left) * world.dpr;
+  const sy = (e.clientY - rect.top) * world.dpr;
+  const vs = toScreen(S.viewer);
+  if (Math.hypot(sx - vs.x, sy - vs.y) < 18 * world.dpr) {
+    dragging = true;
+    canvas.style.cursor = 'grabbing';
+  }
+});
+canvas.addEventListener('mousemove', (e) => {
+  if (!dragging) return;
+  const rect = canvas.getBoundingClientRect();
+  const sx = (e.clientX - rect.left) * world.dpr;
+  const sy = (e.clientY - rect.top) * world.dpr;
+  S.viewer = fromScreen({ x: sx, y: sy });
+  update();
+});
+canvas.addEventListener('mouseup', () => { dragging = false; canvas.style.cursor = 'crosshair'; });
+canvas.addEventListener('mouseleave', () => { dragging = false; canvas.style.cursor = 'crosshair'; });
+
+// Resize observer
+new ResizeObserver(update).observe(canvas);
+
+// Init
+document.querySelector('.preset-btn[data-preset="classic"]').classList.add('active');
+update();
+</script>
+</body>
+</html>
