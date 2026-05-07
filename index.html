@@ -14,12 +14,14 @@
   --text: #ccc;
   --text-dim: #999;
   --text-muted: #666;
-  --accent: #f0c040;
+  --accent: #a83232;
+  --accent-light: #d44;
   --pass: #40f040;
   --fail: #f04040;
   --warn: #f0a040;
   --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
   --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --radius: 0.5rem;
   --space-xs: clamp(0.25rem, 1vw, 0.5rem);
   --space-sm: clamp(0.5rem, 2vw, 0.75rem);
   --space-md: clamp(0.75rem, 3vw, 1.5rem);
@@ -46,7 +48,7 @@ body {
   padding: var(--space-md) clamp(1rem, 4vw, 1.5rem);
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
   font-family: var(--sans);
   font-size: clamp(1rem, 2.5vw, 1.125rem);
   line-height: 1.75;
@@ -89,6 +91,7 @@ body {
 
 canvas {
   border: 1px solid #333;
+  border-radius: var(--radius);
   margin-top: var(--space-md);
   max-width: 100%;
   height: auto;
@@ -126,7 +129,7 @@ canvas {
   padding: var(--space-sm) clamp(0.75rem, 3vw, 1rem);
   background: #1a1a1a;
   border: 1px solid #333;
-  border-radius: 0.25rem;
+  border-radius: var(--radius);
   font-family: var(--mono);
   font-size: clamp(0.6rem, 1.6vw, 0.7rem);
   line-height: 1.8;
@@ -151,6 +154,26 @@ canvas {
 .check-label { color: var(--text-dim); flex: 1; min-width: 10rem; }
 .check-val { font-weight: 600; }
 
+.caption {
+  max-width: 50rem;
+  width: 100%;
+  text-align: center;
+  font-size: clamp(0.7rem, 1.8vw, 0.8rem);
+  color: var(--text-muted);
+  padding: var(--space-sm) 0 var(--space-lg);
+  line-height: 1.6;
+  border-top: 1px solid var(--border-dim);
+  margin-top: var(--space-xs);
+}
+
+.caption a {
+  color: var(--text-dim);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+}
+
+.caption a:hover { color: var(--accent-light); }
+
 @media (max-width: 600px) {
   .principles { flex-direction: column; }
   .check-row { font-size: 0.6rem; }
@@ -165,11 +188,11 @@ canvas {
   <h2>The parabola is not the optimal mirror shape for maximizing mirascope viewing angle.</h2>
   <div class="principles">
     <div class="principle">
-      <svg width="24" height="24" viewBox="0 0 28 28"><line x1="4" y1="14" x2="24" y2="14" stroke="#f0c040" stroke-width="2.5" stroke-linecap="round"/><circle cx="24" cy="14" r="3" fill="none" stroke="#f0c040" stroke-width="1.5"/></svg>
+      <svg width="24" height="24" viewBox="0 0 28 28"><line x1="4" y1="14" x2="24" y2="14" stroke="#d44" stroke-width="2.5" stroke-linecap="round"/><circle cx="24" cy="14" r="3" fill="none" stroke="#d44" stroke-width="1.5"/></svg>
       <span><strong style="color:var(--accent)">Principle 1</strong> — Light travels in straight lines.</span>
     </div>
     <div class="principle">
-      <svg width="24" height="24" viewBox="0 0 28 28"><line x1="4" y1="22" x2="14" y2="6" stroke="#f0c040" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="6" x2="24" y2="22" stroke="#f0c040" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="6" x2="14" y2="26" stroke="#555" stroke-width="1" stroke-dasharray="2,2"/></svg>
+      <svg width="24" height="24" viewBox="0 0 28 28"><line x1="4" y1="22" x2="14" y2="6" stroke="#d44" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="6" x2="24" y2="22" stroke="#d44" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="6" x2="14" y2="26" stroke="#555" stroke-width="1" stroke-dasharray="2,2"/></svg>
       <span><strong style="color:var(--accent)">Principle 2</strong> — Angle in equals angle out.</span>
     </div>
   </div>
@@ -1069,5 +1092,10 @@ function draw() {
 document.querySelectorAll('input[type=range]').forEach(el => el.addEventListener('input', draw));
 draw();
 </script>
+
+<div class="caption">
+  Self-validating mirascope ray trace simulator · Based on analysis by Adhya &amp; Noé (Stony Brook, 2007) · Original device by Elings &amp; Landry (US 3,647,284, 1972) · Patent 8,210,694 (McClanahan, USF, 2012, expired)
+</div>
+
 </body>
 </html>
