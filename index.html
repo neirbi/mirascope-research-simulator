@@ -3,840 +3,445 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mirascope Simulator</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@700&display=swap" rel="stylesheet">
+<title>Mirascope Formula Sheet</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-:root {
-  --bg:      #0c0d0f;
-  --panel:   #12141a;
-  --panel2:  #1a1d24;
-  --border:  rgba(255,255,255,0.07);
-  --border2: rgba(255,255,255,0.13);
-  --text:    #e8e6e0;
-  --muted:   #6b6862;
-  --accent:  #1D9E75;
-  --mono:    'JetBrains Mono', monospace;
-  --display: 'Syne', sans-serif;
-  --red:  #ff4455;
-  --grn:  #33dd88;
-  --blu:  #4499ff;
-}
-html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 13px; }
-body { display: flex; flex-direction: column; overflow: hidden; }
+  :root {
+    --bg: #0a0a0a;
+    --card: #141414;
+    --border: #2a2a2a;
+    --text: #e0e0e0;
+    --dim: #888;
+    --accent: #f0c040;
+    --accent2: #40a0f0;
+    --accent3: #60d060;
+    --red: #f06060;
+  }
 
-/* ── top bar ── */
-.topbar {
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
-  padding: 12px 24px;
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  flex-wrap: wrap;
-  flex-shrink: 0;
-}
-.topbar h1 { font-family: var(--display); font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-.verdict {
-  font-size: 13px; font-weight: 600;
-  padding: 5px 16px; border-radius: 4px;
-  transition: all 0.2s;
-}
-.verdict.yes { background: rgba(29,158,117,0.15); color: #1D9E75; border: 1px solid rgba(29,158,117,0.35); }
-.verdict.no  { background: rgba(213,69,69,0.15);  color: #e05555; border: 1px solid rgba(213,69,69,0.35); }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    padding: 32px;
+    max-width: 900px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
 
-.eq { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.eq b { color: var(--text); font-weight: 600; }
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+    letter-spacing: -0.5px;
+  }
 
-/* ── layout ── */
-.app { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+  .subtitle {
+    color: var(--dim);
+    font-size: 14px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 16px;
+  }
 
-/* ── left panel ── */
-.left {
-  width: 210px;
-  flex-shrink: 0;
-  border-right: 1px solid var(--border);
-  background: var(--panel);
-  padding: 20px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  overflow-y: auto;
-}
-.sec-title {
-  font-size: 9.5px; letter-spacing: 0.13em; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 10px;
-}
-.ctrl { margin-bottom: 12px; }
-.ctrl-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
-.ctrl-name { font-size: 12px; color: var(--text); }
-.ctrl-val  { font-size: 12px; font-weight: 600; color: #6db5e8; }
+  .section {
+    margin-bottom: 28px;
+  }
 
-input[type=range] {
-  -webkit-appearance: none; appearance: none;
-  width: 100%; height: 2px;
-  background: rgba(255,255,255,0.12); border-radius: 1px;
-  outline: none; cursor: pointer;
-}
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none; appearance: none;
-  width: 13px; height: 13px; border-radius: 50%;
-  background: #5294D8; border: 2px solid var(--bg);
-  cursor: pointer; transition: transform 0.1s;
-}
-input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.25); }
-input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: #5294D8; border: 2px solid var(--bg); cursor: pointer; }
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent2);
+    margin-bottom: 12px;
+  }
 
-/* ── right panel ── */
-.right {
-  width: 220px;
-  flex-shrink: 0;
-  border-left: 1px solid var(--border);
-  background: var(--panel);
-  padding: 20px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  overflow-y: auto;
-}
-.stat {
-  display: flex; justify-content: space-between; align-items: baseline;
-  padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 11.5px;
-}
-.stat:last-child { border-bottom: none; }
-.stat-label { color: var(--muted); }
-.stat-val   { font-weight: 600; font-variant-numeric: tabular-nums; }
-.stat-val.good { color: #1D9E75; }
-.stat-val.warn { color: #D85A30; }
-.stat-val.bad  { color: #e05555; }
+  .formula-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
 
-.cone-bar {
-  margin-top: 10px;
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px;
-}
-.cone-title { font-size: 9.5px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
-.cone-arc { position: relative; height: 60px; }
-canvas.cone-canvas { width: 100%; height: 100%; }
+  .formula-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+  }
 
-.led-note { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border); font-size: 10.5px; color: var(--muted); line-height: 1.8; }
-.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+  .formula-card.full {
+    grid-column: 1 / -1;
+  }
 
-/* ── main canvas ── */
-.main { flex: 1; padding: 14px; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
-canvas#main { display: block; width: 100%; flex: 1; background: #06070a; border-radius: 8px; border: 1px solid var(--border); cursor: ns-resize; }
-.hint { font-size: 10.5px; color: var(--muted); text-align: center; }
+  .formula-label {
+    font-size: 12px;
+    color: var(--dim);
+    margin-bottom: 6px;
+  }
+
+  .formula {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  .formula .var {
+    color: var(--accent);
+  }
+
+  .formula .eq {
+    color: var(--dim);
+    margin: 0 4px;
+  }
+
+  .formula .note {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--dim);
+    display: block;
+    margin-top: 4px;
+  }
+
+  .master {
+    border-color: var(--accent);
+    border-width: 2px;
+    background: #1a1608;
+  }
+
+  .master .formula {
+    font-size: 20px;
+    color: var(--accent);
+  }
+
+  .constraint {
+    border-left: 3px solid var(--red);
+  }
+
+  .constraint .formula {
+    color: var(--red);
+  }
+
+  .invariant {
+    border-left: 3px solid var(--accent3);
+  }
+
+  .invariant .formula {
+    color: var(--accent3);
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 24px 0;
+  }
+
+  .legend {
+    display: flex;
+    gap: 20px;
+    font-size: 12px;
+    color: var(--dim);
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .legend-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+  }
+
+  .var-table {
+    display: grid;
+    grid-template-columns: 60px 1fr;
+    gap: 2px 12px;
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+
+  .var-table .v {
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .var-table .d {
+    color: var(--dim);
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 16px; }
+    .formula-grid { grid-template-columns: 1fr; }
+    .formula { font-size: 14px; }
+  }
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <h1>Mirascope</h1>
-  <div class="eq">
-    <span>f₁ = f₂ =</span><b id="eqF">—</b>
-    <span>&nbsp;=&nbsp; d_sep =</span><b id="eqDsep">—</b>
-    <span>&nbsp;·&nbsp; f = D/(2√2)</span>
+<h1>Mirascope — Canonical Formula Sheet</h1>
+<p class="subtitle">All formulas assume f₁ = f₂ = d_sep (canonical configuration). Plug and play.</p>
+
+<div class="section">
+  <div class="section-title">Variables</div>
+  <div class="var-table">
+    <span class="v">D</span><span class="d">full mirror diameter (rim to rim)</span>
+    <span class="v">d</span><span class="d">dish depth (vertex to rim plane, aka sagitta)</span>
+    <span class="v">f</span><span class="d">focal length</span>
+    <span class="v">d_sep</span><span class="d">vertex-to-vertex distance between mirrors</span>
+    <span class="v">A</span><span class="d">aperture diameter (hole in upper mirror)</span>
+    <span class="v">h_obj</span><span class="d">object height above M1 vertex</span>
+    <span class="v">h_img</span><span class="d">image height above aperture</span>
+    <span class="v">m</span><span class="d">magnification</span>
+    <span class="v">R</span><span class="d">radius of curvature at vertex</span>
   </div>
-  <div class="verdict" id="verdict">—</div>
 </div>
 
-<div class="app">
-
-  <!-- ── LEFT: inputs ── -->
-  <aside class="left">
-
-    <div>
-      <div class="sec-title">Physical constraints</div>
-      <div class="ctrl">
-        <div class="ctrl-row"><span class="ctrl-name">Diameter D</span><span class="ctrl-val" id="vD">280 mm</span></div>
-        <input type="range" id="sD" min="100" max="600" step="2" value="280">
-      </div>
-      <div class="ctrl">
-        <div class="ctrl-row"><span class="ctrl-name">Aperture A</span><span class="ctrl-val" id="vA">62 mm</span></div>
-        <input type="range" id="sA" min="10" max="200" step="1" value="62">
-      </div>
-    </div>
-
-    <div>
-      <div class="sec-title">Break the formula</div>
-      <div style="font-size:10.5px; color:var(--muted); margin-bottom:10px; line-height:1.6">
-        By default f = D/(2√2).<br>Override to test what breaks.
-      </div>
-      <div class="ctrl">
-        <div class="ctrl-row"><span class="ctrl-name">f override</span><span class="ctrl-val" id="vFover">off</span></div>
-        <input type="range" id="sFover" min="0" max="300" step="1" value="0">
-      </div>
-      <div class="ctrl">
-        <div class="ctrl-row"><span class="ctrl-name">d_sep override</span><span class="ctrl-val" id="vDsepOver">off</span></div>
-        <input type="range" id="sDsepOver" min="0" max="400" step="1" value="0">
-      </div>
-    </div>
-
-    <div class="led-note">
-      <div style="font-size:9.5px;letter-spacing:0.13em;text-transform:uppercase;margin-bottom:6px;">Object LEDs</div>
-      <div><span class="dot" style="background:var(--red)"></span>Red &nbsp; −20 mm</div>
-      <div><span class="dot" style="background:var(--grn)"></span>Green &nbsp; 0 mm (axis)</div>
-      <div><span class="dot" style="background:var(--blu)"></span>Blue &nbsp; +20 mm</div>
-      <div style="margin-top:8px; line-height:1.6">Drag image ↕ on canvas.<br>Math solves backward.</div>
-    </div>
-
-  </aside>
-
-  <!-- ── CENTER: main canvas ── -->
-  <main class="main">
-    <canvas id="main"></canvas>
-    <div class="hint">↕ drag the image point to set desired height · everything else follows</div>
-  </main>
-
-  <!-- ── RIGHT: computed outputs ── -->
-  <aside class="right">
-    <div class="sec-title" style="margin-bottom:4px">Computed from math</div>
-
-    <div class="stat"><span class="stat-label">f (focal length)</span><span class="stat-val" id="oF">—</span></div>
-    <div class="stat"><span class="stat-label">d_sep</span><span class="stat-val" id="oDsep">—</span></div>
-    <div class="stat"><span class="stat-label">Dish depth d</span><span class="stat-val" id="oDish">—</span></div>
-    <div class="stat"><span class="stat-label">Object height h_obj</span><span class="stat-val" id="oHobj">—</span></div>
-    <div class="stat"><span class="stat-label">Image height h_img</span><span class="stat-val" id="oHimg">—</span></div>
-    <div class="stat"><span class="stat-label">Magnification</span><span class="stat-val" id="oMag">—</span></div>
-    <div class="stat"><span class="stat-label">f-ratio (f/D)</span><span class="stat-val" id="oFrat">—</span></div>
-
-    <div style="margin-top:12px">
-      <div class="sec-title" style="margin-bottom:8px">Viewing cone</div>
-      <div class="stat"><span class="stat-label">θ_min (shallow)</span><span class="stat-val" id="oTmin">—</span></div>
-      <div class="stat"><span class="stat-label">θ_max (steep)</span><span class="stat-val" id="oTmax">—</span></div>
-      <div class="stat"><span class="stat-label">Cone width</span><span class="stat-val" id="oCone">—</span></div>
-      <div class="stat"><span class="stat-label">Optimal angle</span><span class="stat-val" id="oOpt">—</span></div>
-    </div>
-
-    <div style="margin-top:12px">
-      <div class="sec-title" style="margin-bottom:8px">Design questions</div>
-      <div class="stat"><span class="stat-label">Image above aperture</span><span class="stat-val" id="oAbove">—</span></div>
-      <div class="stat"><span class="stat-label">Peep risk</span><span class="stat-val" id="oPeep">—</span></div>
-      <div class="stat"><span class="stat-label">Formula satisfied</span><span class="stat-val" id="oFormula">—</span></div>
-    </div>
-
-  </aside>
-
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--accent);"></div> Master equation</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--accent3);"></div> Invariant (always true)</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--red);"></div> Hard constraint</div>
 </div>
 
-<script>
-"use strict";
+<!-- MASTER -->
+<div class="section">
+  <div class="section-title">Master Equation</div>
+  <div class="formula-grid">
+    <div class="formula-card full master">
+      <div class="formula-label">The one rule that makes everything work</div>
+      <div class="formula"><span class="var">f₁</span> <span class="eq">=</span> <span class="var">f₂</span> <span class="eq">=</span> <span class="var">d_sep</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- GEOMETRY -->
+<div class="section">
+  <div class="section-title">Mirror Geometry</div>
+  <div class="formula-grid">
+    <div class="formula-card">
+      <div class="formula-label">Focal length from diameter & depth</div>
+      <div class="formula"><span class="var">f</span> <span class="eq">=</span> D² / (16d)</div>
+    </div>
+    <div class="formula-card">
+      <div class="formula-label">Depth from focal length & diameter</div>
+      <div class="formula"><span class="var">d</span> <span class="eq">=</span> D² / (16f)</div>
+    </div>
+    <div class="formula-card">
+      <div class="formula-label">Diameter from focal length & depth</div>
+      <div class="formula"><span class="var">D</span> <span class="eq">=</span> 4√(f·d)</div>
+    </div>
+    <div class="formula-card">
+      <div class="formula-label">Radius of curvature at vertex</div>
+      <div class="formula"><span class="var">R</span> <span class="eq">=</span> 2f</div>
+    </div>
+  </div>
+</div>
+
+<!-- CANONICAL -->
+<div class="section">
+  <div class="section-title">Canonical Relationships (rims touching)</div>
+  <div class="formula-grid">
+    <div class="formula-card">
+      <div class="formula-label">Focal length from diameter</div>
+      <div class="formula"><span class="var">f</span> <span class="eq">=</span> D / (2√2)
+        <span class="note">≈ 0.3536 × D</span>
+      </div>
+    </div>
+    <div class="formula-card">
+      <div class="formula-label">Dish depth from diameter</div>
+      <div class="formula"><span class="var">d</span> <span class="eq">=</span> D / (4√2)
+        <span class="note">≈ 0.1768 × D</span>
+      </div>
+    </div>
+    <div class="formula-card">
+      <div class="formula-label">Vertex separation</div>
+      <div class="formula"><span class="var">d_sep</span> <span class="eq">=</span> f <span class="eq">=</span> 2d</div>
+    </div>
+    <div class="formula-card invariant">
+      <div class="formula-label">f-ratio (fixed for all sizes)</div>
+      <div class="formula"><span class="var">N</span> <span class="eq">=</span> f/D <span class="eq">=</span> 1/(2√2)
+        <span class="note">≈ 0.354</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- IMAGE -->
+<div class="section">
+  <div class="section-title">Image Position & Magnification</div>
+  <div class="formula-grid">
+    <div class="formula-card">
+      <div class="formula-label">Image height (given object height)</div>
+      <div class="formula"><span class="var">h_img</span> <span class="eq">=</span> f·h_obj / (f − h_obj)</div>
+    </div>
+    <div class="formula-card">
+      <div class="formula-label">Object height (given desired image height)</div>
+      <div class="formula"><span class="var">h_obj</span> <span class="eq">=</span> f·h_img / (f + h_img)</div>
+    </div>
+    <div class="formula-card">
+      <div class="formula-label">Magnification</div>
+      <div class="formula"><span class="var">m</span> <span class="eq">=</span> f / (f − h_obj)</div>
+    </div>
+    <div class="formula-card">
+      <div class="formula-label">Lateral inversion</div>
+      <div class="formula"><span class="var">x_img</span> <span class="eq">=</span> −x_obj × m
+        <span class="note">left↔right swap, NOT upside down</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VIEWING -->
+<div class="section">
+  <div class="section-title">Viewing Cone (angles from horizontal)</div>
+  <div class="formula-grid">
+    <div class="formula-card">
+      <div class="formula-label">Minimum angle (inner limit)</div>
+      <div class="formula"><span class="var">θ_min</span> <span class="eq">=</span> arctan(A/2 / d_sep)
+        <span class="note">= arctan( (A/D)·√2 )</span>
+      </div>
+    </div>
+    <div class="formula-card invariant">
+      <div class="formula-label">Maximum angle (outer limit) — FIXED</div>
+      <div class="formula"><span class="var">θ_max</span> <span class="eq">=</span> arctan(√2)
+        <span class="note">= 54.74° always</span>
+      </div>
+    </div>
+    <div class="formula-card">
+      <div class="formula-label">Cone width</div>
+      <div class="formula"><span class="var">Δθ</span> <span class="eq">=</span> θ_max − θ_min</div>
+    </div>
+    <div class="formula-card">
+      <div class="formula-label">Optimal viewing</div>
+      <div class="formula"><span class="var">θ_opt</span> <span class="eq">=</span> (θ_min + θ_max) / 2</div>
+    </div>
+    <div class="formula-card">
+      <div class="formula-label">Peep risk ratio</div>
+      <div class="formula"><span class="var">A/D</span> <span class="eq">&lt;</span> 0.25
+        <span class="note">for low peep risk</span>
+      </div>
+    </div>
+    <div class="formula-card">
+      <div class="formula-label">Aperture/diameter ratio</div>
+      <div class="formula"><span class="var">A/D</span> <span class="eq">=</span> tan(θ_min) / tan(θ_max)</div>
+    </div>
+  </div>
+</div>
+
+<!-- RAY INTERSECTION -->
+<div class="section">
+  <div class="section-title">Ray–Parabola Intersection</div>
+  <div class="formula-grid">
+    <div class="formula-card full">
+      <div class="formula-label">Ray from (ox, oy) with direction (dx, dy), parabola vertex (vx, vy), sign s = ±1</div>
+      <div class="formula">
+        u = ox − vx,&nbsp;&nbsp;v = oy − vy<br>
+        A = dx²<br>
+        B = 2u·dx − 4f·s·dy<br>
+        C = u² − 4f·s·v<br>
+        <span class="note">Solve At² + Bt + C = 0, take smallest positive t</span>
+        <span class="note">If dx = 0 (vertical ray): t = −C/B</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- REFLECTION -->
+<div class="section">
+  <div class="section-title">Reflection</div>
+  <div class="formula-grid">
+    <div class="formula-card">
+      <div class="formula-label">Surface normal at (x, y) on parabola</div>
+      <div class="formula">
+        n_x = −(x − vx) / (2f)<br>
+        n_y = s<br>
+        <span class="note">then normalize: n̂ = n/|n|</span>
+      </div>
+    </div>
+    <div class="formula-card">
+      <div class="formula-label">Reflected ray direction</div>
+      <div class="formula"><span class="var">r</span> <span class="eq">=</span> d − 2(d·n̂)n̂
+        <span class="note">d = incident direction, n̂ = unit normal</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BRIGHTNESS -->
+<div class="section">
+  <div class="section-title">Brightness</div>
+  <div class="formula-grid">
+    <div class="formula-card full">
+      <div class="formula-label">Net image brightness</div>
+      <div class="formula"><span class="var">I_img</span> <span class="eq">=</span> I_obj × R₁ × R₂ × η
+        <span class="note">R₁,R₂ ≈ 0.90 (aluminum). η ≈ 0.5–0.6 (geometric efficiency)</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SECONDARY IMAGES -->
+<div class="section">
+  <div class="section-title">Secondary Images (d_sep > f)</div>
+  <div class="formula-grid">
+    <div class="formula-card full">
+      <div class="formula-label">Mirror separations where secondary images appear</div>
+      <div class="formula">
+        4 reflections: &nbsp;<span class="var">d_sep/f</span> ≈ 1.39<br>
+        6 reflections: &nbsp;<span class="var">d_sep/f</span> ≈ 1.56<br>
+        8 reflections: &nbsp;<span class="var">d_sep/f</span> ≈ 1.66<br>
+        n → ∞: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="var">d_sep/f</span> → 2.0
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CONSTRAINTS -->
+<div class="section">
+  <div class="section-title">Hard Constraints</div>
+  <div class="formula-grid">
+    <div class="formula-card constraint">
+      <div class="formula-label">Object must be below focal point</div>
+      <div class="formula">h_obj <span class="eq">&lt;</span> f</div>
+    </div>
+    <div class="formula-card constraint">
+      <div class="formula-label">Aperture smaller than diameter</div>
+      <div class="formula">A <span class="eq">&lt;</span> D</div>
+    </div>
+    <div class="formula-card constraint">
+      <div class="formula-label">Dishes must not intersect</div>
+      <div class="formula">d <span class="eq">&lt;</span> d_sep / 2</div>
+    </div>
+    <div class="formula-card constraint">
+      <div class="formula-label">Image must form (rays converge)</div>
+      <div class="formula">d_sep <span class="eq">&lt;</span> 2f</div>
+    </div>
+  </div>
+</div>
+
+<!-- VERIFICATION -->
+<div class="section">
+  <div class="section-title">Verification — Mirage Model 2000</div>
+  <div class="formula-grid">
+    <div class="formula-card full">
+      <div class="formula-label">Plug these in to check any formula</div>
+      <div class="formula">
+        D = 228 mm &nbsp; f = 80.6 mm &nbsp; A = 62.5 mm &nbsp; d_sep = 80.6 mm<br>
+        d = 40.3 mm &nbsp; θ_min = 21.2° &nbsp; θ_max = 54.7° &nbsp; Δθ = 33.5°<br>
+        <span class="note">h_obj = 25.4mm → h_img = 37.1mm, m = 1.46</span>
+      </div>
+    </div>
+  </div>
+</div>
 
-// ═══════════════════════════════════════════════════════
-// VERIFIED MATH (all 9 tests pass against Adhya & Noé)
-// ═══════════════════════════════════════════════════════
-
-const DEG = 180 / Math.PI;
-
-// Canonical focal length from diameter
-function canonicalF(D)         { return D / (2 * Math.sqrt(2)); }
-
-// Dish depth from D and f
-function dishDepth(D, f)       { return (D * D) / (16 * f); }
-
-// Image height above aperture given object height above M1 vertex
-function imageHeight(f, h_obj) { return (f * h_obj) / (f - h_obj); }
-
-// BACKWARD: object height needed to produce desired image height
-function solveHobj(f, h_img)   { return (f * h_img) / (f + h_img); }
-
-// Magnification
-function magnification(f, h_obj) { return f / (f - h_obj); }
-
-// Viewing cone angles (from horizontal)
-function viewingCone(D, A, dSep) {
-  const tmin = Math.atan((A / 2) / dSep) * DEG;
-  const tmax = Math.atan((D / 2) / dSep) * DEG;
-  return { tmin, tmax, width: tmax - tmin, optimal: (tmin + tmax) / 2 };
-}
-
-// Surface normal (inward, toward focus) — verified in Test 8
-function surfaceNormal(x, vx, f, opensUp) {
-  const nx = -(x - vx) / (2 * f);
-  const ny = opensUp ? 1 : -1;
-  const len = Math.hypot(nx, ny);
-  return { x: nx / len, y: ny / len };
-}
-
-// Reflection — verified in Tests 8 & 9
-function reflectDir(d, n) {
-  const dot = d.x * n.x + d.y * n.y;
-  return { x: d.x - 2 * dot * n.x, y: d.y - 2 * dot * n.y };
-}
-
-// Ray-parabola intersection — handles vertical ray (A=0) case
-function intersectPara(ox, oy, dx, dy, vx, vy, f, opensUp) {
-  const s = opensUp ? 1 : -1;
-  const u = ox - vx, v = oy - vy;
-  const A = dx * dx;
-  const B = 2 * u * dx - 4 * f * s * dy;
-  const C = u * u - 4 * f * s * v;
-  if (Math.abs(A) < 1e-9) {
-    if (Math.abs(B) < 1e-9) return null;
-    const t = -C / B;
-    return t > 1e-4 ? t : null;
-  }
-  const disc = B * B - 4 * A * C;
-  if (disc < 0) return null;
-  const sq = Math.sqrt(disc);
-  const t1 = (-B - sq) / (2 * A);
-  const t2 = (-B + sq) / (2 * A);
-  if (t1 > 1e-4) return t1;
-  if (t2 > 1e-4) return t2;
-  return null;
-}
-
-// Full 3-leg ray trace for one LED
-// Returns array of segments [{from, to, solid}] and image convergence point
-function traceRay(objX, objY, targetXonM2, f, dSep, D, A) {
-  const v1y = -dSep / 2;  // M1 vertex y
-  const v2y = +dSep / 2;  // M2 vertex y
-
-  // Emit direction: from object toward targetXonM2 on M2 surface
-  const tyM2 = v2y - (targetXonM2 * targetXonM2) / (4 * f);
-  const raw = { x: targetXonM2 - objX, y: tyM2 - objY };
-  const rlen = Math.hypot(raw.x, raw.y);
-  const dir = { x: raw.x / rlen, y: raw.y / rlen };
-
-  const segs = [];
-
-  // LEG 1: object → M2
-  const t2 = intersectPara(objX, objY, dir.x, dir.y, 0, v2y, f, false);
-  if (t2 === null) return { segs, ok: false };
-  const hx2 = objX + dir.x * t2, hy2 = objY + dir.y * t2;
-  const halfD = D / 2, halfA = A / 2;
-  if (Math.abs(hx2) < halfA || Math.abs(hx2) > halfD) {
-    segs.push({ from: { x: objX, y: objY }, to: { x: hx2, y: hy2 }, solid: false });
-    return { segs, ok: false };
-  }
-  segs.push({ from: { x: objX, y: objY }, to: { x: hx2, y: hy2 }, solid: true });
-
-  // LEG 2: M2 → M1 (should be vertical per parabola property)
-  const n2 = surfaceNormal(hx2, 0, f, false);
-  const r1 = reflectDir(dir, n2);
-  const t1 = intersectPara(hx2, hy2, r1.x, r1.y, 0, v1y, f, true);
-  if (t1 === null) {
-    segs.push({ from: { x: hx2, y: hy2 }, to: { x: hx2 + r1.x * 300, y: hy2 + r1.y * 300 }, solid: false });
-    return { segs, ok: false };
-  }
-  const hx1 = hx2 + r1.x * t1, hy1 = hy2 + r1.y * t1;
-  if (Math.abs(hx1) > halfD) {
-    segs.push({ from: { x: hx2, y: hy2 }, to: { x: hx1, y: hy1 }, solid: false });
-    return { segs, ok: false };
-  }
-  segs.push({ from: { x: hx2, y: hy2 }, to: { x: hx1, y: hy1 }, solid: true });
-
-  // LEG 3: M1 → image
-  const n1 = surfaceNormal(hx1, 0, f, true);
-  const r2 = reflectDir(r1, n1);
-  if (Math.abs(r2.y) < 1e-9) return { segs, ok: false };
-  const t_img = (v2y - hy1) / r2.y;
-  if (t_img <= 0) return { segs, ok: false };
-  const imgX = hx1 + r2.x * t_img;
-  const imgY = v2y;
-  const through = Math.abs(imgX) <= halfA + 1;
-  // extend past aperture for visual
-  const ext = 50;
-  segs.push({ from: { x: hx1, y: hy1 }, to: { x: hx1 + r2.x * (t_img + ext), y: hy1 + r2.y * (t_img + ext) }, solid: through });
-  return { segs, ok: through, imgX, imgY };
-}
-
-// ═══════════════════════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════════════════════
-
-const state = {
-  D: 280,
-  A: 62,
-  fOverride: 0,      // 0 = use canonical
-  dSepOverride: 0,   // 0 = use canonical
-  h_img: 0,          // desired image height above aperture (draggable)
-  dragging: false,
-};
-
-const LEDS = [
-  { x: -20, color: '#ff4455', name: 'R' },
-  { x:   0, color: '#33dd88', name: 'G' },
-  { x:  20, color: '#4499ff', name: 'B' },
-];
-
-// ═══════════════════════════════════════════════════════
-// COMPUTED VALUES
-// ═══════════════════════════════════════════════════════
-
-function compute() {
-  const { D, A, fOverride, dSepOverride, h_img } = state;
-
-  // f: canonical unless overridden
-  const f = fOverride > 0 ? fOverride : canonicalF(D);
-  // d_sep: equals f unless overridden
-  const dSep = dSepOverride > 0 ? dSepOverride : f;
-  const d = dishDepth(D, f);
-
-  // Backward solve: what object height produces desired image height?
-  // Guard: h_img must be < f (otherwise no solution)
-  const h_img_clamped = Math.min(h_img, f * 0.95);
-  const h_obj = solveHobj(f, h_img_clamped);
-  const h_img_actual = imageHeight(f, h_obj);
-  const mag = magnification(f, h_obj);
-
-  // Formula satisfied?
-  const tol = f * 0.015;
-  const fOk    = Math.abs(f - dSep) <= tol;
-  const formula = fOk ? 'f₁ = f₂ = d_sep ✓' : `off by ${(dSep - f).toFixed(1)} mm`;
-
-  // Image exists when dSep < 2f
-  const imageExists = dSep < 2 * f && h_obj < f;
-
-  // Viewing cone
-  const cone = viewingCone(D, A, dSep);
-
-  // Peep risk: viewer at optimal angle — does direct line reach object through aperture?
-  // At optimal angle, viewer is at distance ~dSep from aperture, elevation = cone.optimal
-  // Direct line from viewer at 45° hits aperture center — always some peep risk at center
-  // Peep is blocked if A/2 < some threshold relative to D
-  const peepSafe = A / D < 0.25;
-
-  return { f, dSep, d, h_obj, h_img: h_img_actual, mag, formula, imageExists, cone, peepSafe, fOk };
-}
-
-// ═══════════════════════════════════════════════════════
-// RENDER
-// ═══════════════════════════════════════════════════════
-
-const canvas = document.getElementById('main');
-const ctx    = canvas.getContext('2d');
-
-function draw() {
-  const C = compute();
-  const { D, A } = state;
-  const { f, dSep, h_obj } = C;
-
-  // Canvas size
-  const dpr = window.devicePixelRatio || 1;
-  const W = canvas.clientWidth * dpr;
-  const H = canvas.clientHeight * dpr;
-  canvas.width  = W;
-  canvas.height = H;
-
-  // Scale: fit the assembly + some headroom above for image
-  const headroom = Math.max(80, C.h_img * 2 + 60);
-  const assemblyH = dSep + headroom + 30;
-  const assemblyW = D + 80;
-  const scale = Math.min(W / assemblyW, H / assemblyH) * 0.85;
-
-  // Origin: center-x, place M1 vertex so there's room below
-  const cx = W / 2;
-  // v1y is at -dSep/2 in mm coords. We want it near the bottom of the canvas.
-  // cy is the mm-coord origin mapped to canvas.
-  const cy = H - (30 + dSep / 2 + 10) * scale;
-
-  const toX = mm => cx + mm * scale;
-  const toY = mm => cy - mm * scale;
-
-  const v1y = -dSep / 2;  // M1 vertex y in mm
-  const v2y = +dSep / 2;  // M2 vertex y in mm
-
-  // ── background ──
-  ctx.fillStyle = '#06070a';
-  ctx.fillRect(0, 0, W, H);
-
-  // ── optical axis ──
-  ctx.strokeStyle = 'rgba(82,148,216,0.18)';
-  ctx.lineWidth = 1 * dpr;
-  ctx.setLineDash([6 * dpr, 5 * dpr]);
-  ctx.beginPath();
-  ctx.moveTo(cx, toY(v2y + headroom));
-  ctx.lineTo(cx, toY(v1y - 20));
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // ── draw parabola helper ──
-  function drawPara(vy, opensUp, isM1, color) {
-    const halfD = D / 2;
-    const halfA = isM1 ? 0 : A / 2;
-    const segs  = isM1
-      ? [[-halfD, halfD]]
-      : [[-halfD, -halfA], [halfA, halfD]];
-
-    segs.forEach(([x0, x1]) => {
-      ctx.beginPath();
-      const N = 300;
-      for (let i = 0; i <= N; i++) {
-        const xmm = x0 + (x1 - x0) * i / N;
-        const ymm = opensUp
-          ? vy + (xmm * xmm) / (4 * f)
-          : vy - (xmm * xmm) / (4 * f);
-        i === 0
-          ? ctx.moveTo(toX(xmm), toY(ymm))
-          : ctx.lineTo(toX(xmm), toY(ymm));
-      }
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2.5 * dpr;
-      ctx.stroke();
-    });
-
-    // aperture rim marker
-    if (!isM1) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-      ctx.lineWidth = 3 * dpr;
-      ctx.beginPath();
-      ctx.moveTo(toX(-halfA), toY(vy));
-      ctx.lineTo(toX(halfA),  toY(vy));
-      ctx.stroke();
-    }
-  }
-
-  drawPara(v1y, true,  true,  '#1D9E75');  // M1 green
-  drawPara(v2y, false, false, '#5294D8');  // M2 blue
-
-  // ── object height on M1 ──
-  const objY_mm = v1y + h_obj;
-
-  // ── trace rays ──
-  // Choose M2 target x for each LED: aim at 60% of half-diameter, mirrored for left/right
-  LEDS.forEach(led => {
-    const objX = led.x;
-    // pick a representative hit point on M2
-    const sign = objX > 0 ? 1 : objX < 0 ? -1 : 1;
-    const targetX = sign * D * 0.42;
-
-    const result = traceRay(objX, objY_mm, targetX, f, dSep, D, A);
-
-    result.segs.forEach(seg => {
-      ctx.strokeStyle = led.color;
-      ctx.lineWidth   = 1.8 * dpr;
-      ctx.globalAlpha = seg.solid ? 0.85 : 0.22;
-      ctx.setLineDash(seg.solid ? [] : [5 * dpr, 4 * dpr]);
-      ctx.beginPath();
-      ctx.moveTo(toX(seg.from.x), toY(seg.from.y));
-      ctx.lineTo(toX(seg.to.x),   toY(seg.to.y));
-      ctx.stroke();
-      ctx.setLineDash([]);
-    });
-    ctx.globalAlpha = 1;
-  });
-
-  // ── focal points ──
-  const F1 = { x: 0, y: v1y + f };  // M1 focus
-  const F2 = { x: 0, y: v2y - f };  // M2 focus
-  [{ pt: F1, label: 'F₁' }, { pt: F2, label: 'F₂' }].forEach(({ pt, label }) => {
-    const sx = toX(pt.x), sy = toY(pt.y);
-    ctx.fillStyle = 'rgba(183,156,240,0.6)';
-    ctx.beginPath(); ctx.arc(sx, sy, 3.5 * dpr, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = 'rgba(183,156,240,0.55)';
-    ctx.font = `${9.5 * dpr}px ${getComputedStyle(document.documentElement).getPropertyValue('--mono')}`;
-    ctx.textAlign = 'left';
-    ctx.fillText(label, sx + 7 * dpr, sy + 4 * dpr);
-  });
-
-  // ── object LEDs ──
-  LEDS.forEach(led => {
-    const sx = toX(led.x), sy = toY(objY_mm);
-    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, 9 * dpr);
-    g.addColorStop(0, led.color + 'cc');
-    g.addColorStop(1, led.color + '00');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(sx, sy, 9 * dpr, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = led.color;
-    ctx.beginPath(); ctx.arc(sx, sy, 3.5 * dpr, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = led.color;
-    ctx.font = `${9.5 * dpr}px ${getComputedStyle(document.documentElement).getPropertyValue('--mono')}`;
-    ctx.textAlign = 'center';
-    ctx.fillText(led.name, sx, sy + 16 * dpr);
-  });
-
-  // ── image LEDs (inverted: x flips sign, scaled by magnification) ──
-  const imgY_mm = v2y + C.h_img;   // above aperture
-  const imgScale = C.mag;
-
-  if (C.imageExists) {
-    LEDS.forEach(led => {
-      const imgX_mm = -led.x * imgScale;  // inversion + magnification
-      const sx = toX(imgX_mm), sy = toY(imgY_mm);
-
-      // glow
-      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, 10 * dpr);
-      g.addColorStop(0, led.color + '99');
-      g.addColorStop(1, led.color + '00');
-      ctx.fillStyle   = g;
-      ctx.globalAlpha = 0.7;
-      ctx.beginPath(); ctx.arc(sx, sy, 10 * dpr, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 1;
-
-      // hollow ring = image (not solid object)
-      ctx.strokeStyle = led.color;
-      ctx.lineWidth   = 1.8 * dpr;
-      ctx.globalAlpha = 0.9;
-      ctx.beginPath(); ctx.arc(sx, sy, 4 * dpr, 0, Math.PI * 2); ctx.stroke();
-      ctx.globalAlpha = 1;
-
-      // label
-      ctx.fillStyle   = led.color;
-      ctx.font        = `${9.5 * dpr}px ${getComputedStyle(document.documentElement).getPropertyValue('--mono')}`;
-      ctx.textAlign   = 'center';
-      ctx.globalAlpha = 0.75;
-      ctx.fillText(led.name, sx, sy - 11 * dpr);
-      ctx.globalAlpha = 1;
-    });
-
-    // "IMAGE" label
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx.font      = `${9.5 * dpr}px ${getComputedStyle(document.documentElement).getPropertyValue('--mono')}`;
-    ctx.textAlign = 'center';
-    ctx.fillText('IMAGE', toX(0), toY(imgY_mm) - 20 * dpr);
-  }
-
-  // ── draggable image handle ──
-  {
-    const hx = toX(0), hy = toY(imgY_mm);
-    ctx.strokeStyle = C.imageExists ? 'rgba(255,255,255,0.55)' : 'rgba(213,69,69,0.55)';
-    ctx.lineWidth   = 1.5 * dpr;
-    ctx.setLineDash([4 * dpr, 3 * dpr]);
-    ctx.beginPath();
-    ctx.moveTo(toX(0), toY(v2y));
-    ctx.lineTo(hx, hy);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    // handle dot
-    ctx.fillStyle = C.imageExists ? 'rgba(255,255,255,0.7)' : 'rgba(213,69,69,0.7)';
-    ctx.beginPath(); ctx.arc(hx, hy, 6 * dpr, 0, Math.PI * 2); ctx.fill();
-
-    // height label
-    ctx.fillStyle   = 'rgba(255,255,255,0.4)';
-    ctx.font        = `${9.5 * dpr}px ${getComputedStyle(document.documentElement).getPropertyValue('--mono')}`;
-    ctx.textAlign   = 'left';
-    ctx.fillText(`${C.h_img.toFixed(1)} mm`, hx + 10 * dpr, hy + 4 * dpr);
-  }
-
-  // ── viewing cone arc ──
-  if (C.imageExists) {
-    const apex = { x: toX(0), y: toY(imgY_mm) };
-    const coneR = 80 * dpr;
-    // cone is measured from horizontal
-    const a1 = (90 - C.cone.tmax) * Math.PI / 180;  // steeper limit
-    const a2 = (90 - C.cone.tmin) * Math.PI / 180;  // shallower limit
-    // draw both sides of cone (left and right)
-    [-1, 1].forEach(side => {
-      ctx.strokeStyle = 'rgba(255,200,80,0.35)';
-      ctx.lineWidth   = 1 * dpr;
-      ctx.setLineDash([4 * dpr, 3 * dpr]);
-      ctx.beginPath();
-      ctx.moveTo(apex.x, apex.y);
-      ctx.lineTo(
-        apex.x + side * coneR * Math.cos(a1),
-        apex.y - coneR * Math.sin(a1)
-      );
-      ctx.moveTo(apex.x, apex.y);
-      ctx.lineTo(
-        apex.x + side * coneR * Math.cos(a2),
-        apex.y - coneR * Math.sin(a2)
-      );
-      ctx.stroke();
-      // fill cone sector
-      ctx.beginPath();
-      ctx.moveTo(apex.x, apex.y);
-      ctx.arc(apex.x, apex.y, coneR, -a2 * side, -a1 * side, side < 0);
-      ctx.closePath();
-      ctx.fillStyle   = 'rgba(255,200,80,0.06)';
-      ctx.fill();
-      ctx.setLineDash([]);
-    });
-
-    // cone label
-    ctx.fillStyle = 'rgba(255,200,80,0.55)';
-    ctx.font      = `${9 * dpr}px ${getComputedStyle(document.documentElement).getPropertyValue('--mono')}`;
-    ctx.textAlign = 'center';
-    ctx.fillText(`${C.cone.width.toFixed(0)}° cone`, apex.x, apex.y - coneR - 8 * dpr);
-  }
-
-  // ── dimension: d_sep ──
-  {
-    const dimX = toX(D / 2 + 18);
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-    ctx.lineWidth   = 1 * dpr;
-    ctx.beginPath();
-    ctx.moveTo(dimX, toY(v1y));
-    ctx.lineTo(dimX, toY(v2y));
-    ctx.stroke();
-    [v1y, v2y].forEach(y => {
-      ctx.beginPath();
-      ctx.moveTo(dimX - 4 * dpr, toY(y));
-      ctx.lineTo(dimX + 4 * dpr, toY(y));
-      ctx.stroke();
-    });
-    ctx.fillStyle = 'rgba(255,255,255,0.25)';
-    ctx.font      = `${9 * dpr}px ${getComputedStyle(document.documentElement).getPropertyValue('--mono')}`;
-    ctx.textAlign = 'left';
-    ctx.fillText('d_sep', dimX + 6 * dpr, toY(0) + 4 * dpr);
-  }
-
-  // ── mirror labels ──
-  ctx.font      = `${9.5 * dpr}px ${getComputedStyle(document.documentElement).getPropertyValue('--mono')}`;
-  ctx.textAlign = 'right';
-  ctx.fillStyle = 'rgba(29,158,117,0.55)';
-  ctx.fillText('M1', toX(-D / 2) - 8 * dpr, toY(v1y + dSep * 0.25));
-  ctx.fillStyle = 'rgba(82,148,216,0.55)';
-  ctx.fillText('M2', toX(-D / 2) - 8 * dpr, toY(v2y - dSep * 0.25));
-
-  // ── update UI panels ──
-  updateUI(C);
-}
-
-function updateUI(C) {
-  const { D, A } = state;
-
-  // top bar
-  document.getElementById('eqF').textContent    = C.f.toFixed(1) + ' mm';
-  document.getElementById('eqDsep').textContent = C.dSep.toFixed(1) + ' mm';
-
-  const v = document.getElementById('verdict');
-  if (C.imageExists && C.fOk) {
-    v.textContent = '✓  IMAGE FORMS  —  f₁ = f₂ = d_sep';
-    v.className   = 'verdict yes';
-  } else if (C.imageExists && !C.fOk) {
-    v.textContent = '⚠  IMAGE (degraded)  —  f ≠ d_sep';
-    v.className   = 'verdict no';
-  } else {
-    v.textContent = '✗  NO IMAGE  —  d_sep ≥ 2f or h_obj ≥ f';
-    v.className   = 'verdict no';
-  }
-
-  // right panel stats
-  const q = (id, val, cls) => {
-    const el = document.getElementById(id);
-    el.textContent = val;
-    el.className   = 'stat-val' + (cls ? ' ' + cls : '');
-  };
-
-  q('oF',       C.f.toFixed(1) + ' mm');
-  q('oDsep',    C.dSep.toFixed(1) + ' mm');
-  q('oDish',    C.d.toFixed(1) + ' mm');
-  q('oHobj',    C.h_obj.toFixed(1) + ' mm');
-  q('oHimg',    C.h_img.toFixed(1) + ' mm',  C.h_img > 0 ? 'good' : '');
-  q('oMag',     C.mag.toFixed(3) + '×',      C.mag > 1.2 ? 'warn' : 'good');
-  q('oFrat',    'f/' + (C.f / D).toFixed(2));
-  q('oTmin',    C.cone.tmin.toFixed(1) + '°');
-  q('oTmax',    C.cone.tmax.toFixed(1) + '°');
-  q('oCone',    C.cone.width.toFixed(1) + '°', C.cone.width > 25 ? 'good' : 'warn');
-  q('oOpt',     C.cone.optimal.toFixed(1) + '°');
-  q('oAbove',   C.h_img.toFixed(1) + ' mm',  C.h_img > 0 ? 'good' : '');
-  q('oPeep',    C.peepSafe ? 'LOW RISK' : 'HIGH RISK', C.peepSafe ? 'good' : 'bad');
-  q('oFormula', C.fOk ? '✓ satisfied' : '✗ ' + C.formula, C.fOk ? 'good' : 'bad');
-
-  // left panel
-  document.getElementById('vD').textContent = state.D + ' mm';
-  document.getElementById('vA').textContent = state.A + ' mm';
-  const fov = state.fOverride;
-  document.getElementById('vFover').textContent    = fov > 0 ? fov + ' mm' : 'off (canonical)';
-  const dsov = state.dSepOverride;
-  document.getElementById('vDsepOver').textContent = dsov > 0 ? dsov + ' mm' : 'off (= f)';
-}
-
-// ═══════════════════════════════════════════════════════
-// DRAG: image height
-// ═══════════════════════════════════════════════════════
-
-function getScale() {
-  const C = compute();
-  const { D, A } = state;
-  const { f, dSep } = C;
-  const dpr = window.devicePixelRatio || 1;
-  const W = canvas.clientWidth  * dpr;
-  const H = canvas.clientHeight * dpr;
-  const headroom   = Math.max(80, state.h_img * 2 + 60);
-  const assemblyH  = dSep + headroom + 30;
-  const assemblyW  = D + 80;
-  return Math.min(W / assemblyW, H / assemblyH) * 0.85;
-}
-
-function screenToMmY(screenY) {
-  const dpr    = window.devicePixelRatio || 1;
-  const H      = canvas.clientHeight * dpr;
-  const C      = compute();
-  const scale  = getScale();
-  const dSep   = C.dSep;
-  // cy = H - (30 + dSep/2 + 10) * scale  (same as in draw())
-  const cy     = H - (30 + dSep / 2 + 10) * scale;
-  return (cy - screenY) / scale;  // mm coordinate
-}
-
-canvas.addEventListener('mousedown', e => {
-  const dpr   = window.devicePixelRatio || 1;
-  const rect  = canvas.getBoundingClientRect();
-  const sy    = (e.clientY - rect.top) * dpr;
-  state.dragging = true;
-  handleDrag(sy);
-});
-canvas.addEventListener('mousemove', e => {
-  if (!state.dragging) return;
-  const dpr  = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  const sy   = (e.clientY - rect.top) * dpr;
-  handleDrag(sy);
-});
-canvas.addEventListener('mouseup',    () => { state.dragging = false; });
-canvas.addEventListener('mouseleave', () => { state.dragging = false; });
-
-// Touch support
-canvas.addEventListener('touchstart', e => {
-  e.preventDefault();
-  const dpr  = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  const sy   = (e.touches[0].clientY - rect.top) * dpr;
-  state.dragging = true;
-  handleDrag(sy);
-});
-canvas.addEventListener('touchmove', e => {
-  e.preventDefault();
-  if (!state.dragging) return;
-  const dpr  = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  const sy   = (e.touches[0].clientY - rect.top) * dpr;
-  handleDrag(sy);
-}, { passive: false });
-canvas.addEventListener('touchend', () => { state.dragging = false; });
-
-function handleDrag(screenY) {
-  const C     = compute();
-  const mmY   = screenToMmY(screenY);
-  const v2y   = C.dSep / 2;
-  // h_img = how far above the aperture (v2y)
-  const h_img = mmY - v2y;
-  // clamp: 0 to 95% of f (above that no solution)
-  state.h_img = Math.max(0, Math.min(h_img, C.f * 0.92));
-  draw();
-}
-
-// ═══════════════════════════════════════════════════════
-// SLIDER WIRING
-// ═══════════════════════════════════════════════════════
-
-document.getElementById('sD').addEventListener('input', e => {
-  state.D = +e.target.value;
-  // Reset h_img if it's now out of range
-  const C = compute();
-  if (state.h_img >= C.f * 0.92) state.h_img = 0;
-  draw();
-});
-document.getElementById('sA').addEventListener('input', e => {
-  state.A = +e.target.value;
-  draw();
-});
-document.getElementById('sFover').addEventListener('input', e => {
-  state.fOverride = +e.target.value;
-  draw();
-});
-document.getElementById('sDsepOver').addEventListener('input', e => {
-  state.dSepOverride = +e.target.value;
-  draw();
-});
-
-new ResizeObserver(draw).observe(canvas);
-draw();
-</script>
 </body>
 </html>
