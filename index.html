@@ -44,11 +44,12 @@ body {
 .thesis {
   max-width: 50rem;
   width: 100%;
-  margin: var(--space-lg) 0 var(--space-sm);
-  padding: var(--space-md) clamp(1rem, 4vw, 1.5rem);
+  margin: var(--space-lg) 0 var(--space-md);
+  padding: clamp(1rem, 3vw, 1.5rem) clamp(1rem, 4vw, 1.5rem);
   background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border: none;
+  border-left: 4px solid var(--accent);
+  border-radius: 0;
   font-family: var(--sans);
   font-size: clamp(1rem, 2.5vw, 1.125rem);
   line-height: 1.75;
@@ -61,27 +62,31 @@ body {
   font-size: clamp(1.75rem, 5vw, 2.5rem);
   font-weight: 700;
   letter-spacing: -0.03em;
-  color: var(--accent);
+  color: var(--accent-light);
   margin: 0 0 var(--space-md) 0;
   line-height: 1.2;
 }
 
 .principles {
   display: flex;
-  gap: clamp(0.75rem, 3vw, 1.25rem);
+  gap: 2px;
   margin-bottom: var(--space-md);
   flex-wrap: wrap;
 }
 
 .principle {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.6rem;
-  font-size: clamp(1rem, 2.2vw, 1.0625rem);
+  font-size: clamp(0.85rem, 2vw, 0.95rem);
+  background: var(--bg);
+  padding: 0.5rem 0.75rem;
+  font-family: var(--mono);
+  color: var(--text-dim);
 }
 
-.principle svg { flex-shrink: 0; margin-top: 0.15rem; }
-.principle strong { font-weight: 600; }
+.principle svg { flex-shrink: 0; }
+.principle strong { font-weight: 600; color: var(--accent); }
 
 .thesis p {
   margin: 0 0 clamp(0.6rem, 2vw, 0.9rem) 0;
@@ -90,19 +95,18 @@ body {
 .thesis p:last-child { margin-bottom: 0; }
 
 canvas {
-  border: 1px solid #333;
-  border-radius: var(--radius);
-  margin-top: var(--space-md);
+  border: none;
+  border-radius: 0;
+  margin-top: 2px;
   max-width: 100%;
   height: auto;
 }
 
 .controls {
-  margin: var(--space-sm) 0;
-  display: flex;
-  gap: clamp(0.75rem, 3vw, 1.25rem);
-  flex-wrap: wrap;
-  justify-content: center;
+  margin: 2px 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(6rem, 14vw, 8rem), 1fr));
+  gap: 2px;
   width: 100%;
   max-width: 50rem;
 }
@@ -110,19 +114,26 @@ canvas {
 .ctrl {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
+  align-items: flex-start;
+  gap: 0.35rem;
   font-size: clamp(0.65rem, 1.8vw, 0.75rem);
   font-weight: 500;
+  background: var(--card);
+  padding: 0.5rem 0.75rem;
+}
+
+.ctrl label {
+  font-family: var(--sans);
+  color: var(--text-dim);
 }
 
 .ctrl input[type="range"] {
-  width: clamp(5rem, 15vw, 7.5rem);
+  width: 100%;
   accent-color: var(--accent);
   cursor: pointer;
 }
 
-.val { color: var(--accent); font-weight: 700; }
+.val { color: var(--accent-light); font-weight: 700; font-family: var(--mono); }
 
 #validator {
   margin: var(--space-xs) 0 var(--space-md);
@@ -202,13 +213,15 @@ canvas {
 .caption {
   max-width: 50rem;
   width: 100%;
-  text-align: center;
+  text-align: left;
   font-size: clamp(0.7rem, 1.8vw, 0.8rem);
+  font-family: var(--mono);
   color: var(--text-muted);
-  padding: var(--space-sm) 0 var(--space-lg);
+  padding: 0.75rem;
   line-height: 1.6;
-  border-top: 1px solid var(--border-dim);
-  margin-top: var(--space-xs);
+  background: var(--card);
+  border-left: 4px solid var(--border-dim);
+  margin-top: 2px;
 }
 
 .caption a {
@@ -222,8 +235,7 @@ canvas {
 @media (max-width: 600px) {
   .principles { flex-direction: column; }
   .check-row { font-size: 0.6rem; }
-  .controls { gap: 0.5rem; }
-  .ctrl { min-width: 45%; }
+  .controls { grid-template-columns: 1fr 1fr; }
 }
 </style>
 </head>
@@ -247,7 +259,7 @@ canvas {
   <p>The tools needed to search for a shape like this, such as evolutionary algorithms that can explore millions of freeform surface geometries, exact ray-tracing engines that can evaluate each one, and multi-objective scoring that balances image quality with viewing angle and brightness, did not exist when the mirascope was first discovered. They were also not available for practical use when it was last studied in 2007. However, these tools are available now. This project plans to use them, starting with the two basic laws of reflection and making no assumptions about the mirror shape, to explore a question that has never been asked before: is the parabola really the best shape for a mirascope, or was it just the shape that was readily available?</p>
 </div>
 
-<canvas id="c" width="800" height="500"></canvas>
+<canvas id="c" width="800" height="600"></canvas>
 
 <div class="controls">
   <div class="ctrl">
