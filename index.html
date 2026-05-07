@@ -318,11 +318,11 @@
         <input type="range" id="sf1" min="20" max="300" step="1" value="100">
       </div>
       <div class="ctrl" data-mirror="1">
-        <div class="ctrl-row"><span class="ctrl-label">Truncation (rim cut)</span><span class="ctrl-val" id="vT1">0 %</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Truncation (rim cut)</span><span class="ctrl-val" id="vT1">0 %</span><button class="reset-btn" data-target="sT1" title="Reset to preset value">↺</button></div>
         <input type="range" id="sT1" min="0" max="50" step="1" value="0">
       </div>
       <div class="ctrl" data-mirror="1">
-        <div class="ctrl-row"><span class="ctrl-label">Reflectivity</span><span class="ctrl-val" id="vR1">95 %</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Reflectivity</span><span class="ctrl-val" id="vR1">95 %</span><button class="reset-btn" data-target="sR1" title="Reset to preset value">↺</button></div>
         <input type="range" id="sR1" min="0" max="100" step="1" value="95">
       </div>
     </div>
@@ -335,23 +335,23 @@
       </div>
 
       <div class="ctrl" data-mirror="2">
-        <div class="ctrl-row"><span class="ctrl-label">Diameter D₂</span><span class="ctrl-val" id="vD2">280 mm</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Diameter D₂</span><span class="ctrl-val" id="vD2">280 mm</span><button class="reset-btn" data-target="sD2" title="Reset to preset value">↺</button></div>
         <input type="range" id="sD2" min="60" max="500" step="2" value="280">
       </div>
       <div class="ctrl" data-mirror="2">
-        <div class="ctrl-row"><span class="ctrl-label">Focal length f₂</span><span class="ctrl-val" id="vf2">100 mm</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Focal length f₂</span><span class="ctrl-val" id="vf2">100 mm</span><button class="reset-btn" data-target="sf2" title="Reset to preset value">↺</button></div>
         <input type="range" id="sf2" min="20" max="300" step="1" value="100">
       </div>
       <div class="ctrl" data-mirror="2">
-        <div class="ctrl-row"><span class="ctrl-label">Aperture A (top hole)</span><span class="ctrl-val" id="vA">62 mm</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Aperture A (top hole)</span><span class="ctrl-val" id="vA">62 mm</span><button class="reset-btn" data-target="sA" title="Reset to preset value">↺</button></div>
         <input type="range" id="sA" min="0" max="200" step="1" value="62">
       </div>
       <div class="ctrl" data-mirror="2">
-        <div class="ctrl-row"><span class="ctrl-label">Truncation (rim cut)</span><span class="ctrl-val" id="vT2">0 %</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Truncation (rim cut)</span><span class="ctrl-val" id="vT2">0 %</span><button class="reset-btn" data-target="sT2" title="Reset to preset value">↺</button></div>
         <input type="range" id="sT2" min="0" max="50" step="1" value="0">
       </div>
       <div class="ctrl" data-mirror="2">
-        <div class="ctrl-row"><span class="ctrl-label">Reflectivity</span><span class="ctrl-val" id="vR2">95 %</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Reflectivity</span><span class="ctrl-val" id="vR2">95 %</span><button class="reset-btn" data-target="sR2" title="Reset to preset value">↺</button></div>
         <input type="range" id="sR2" min="0" max="100" step="1" value="95">
       </div>
     </div>
@@ -364,19 +364,19 @@
       </div>
 
       <div class="ctrl">
-        <div class="ctrl-row"><span class="ctrl-label">Vertex separation d_sep</span><span class="ctrl-val" id="vDsep">100 mm</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Vertex separation d_sep</span><span class="ctrl-val" id="vDsep">100 mm</span><button class="reset-btn" data-target="sDsep" title="Reset to preset value">↺</button></div>
         <input type="range" id="sDsep" min="20" max="600" step="1" value="100">
       </div>
       <div class="ctrl">
-        <div class="ctrl-row"><span class="ctrl-label">M2 axis offset</span><span class="ctrl-val" id="vAxOff">0 mm</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">M2 axis offset</span><span class="ctrl-val" id="vAxOff">0 mm</span><button class="reset-btn" data-target="sAxOff" title="Reset to preset value">↺</button></div>
         <input type="range" id="sAxOff" min="-100" max="100" step="1" value="0">
       </div>
       <div class="ctrl">
-        <div class="ctrl-row"><span class="ctrl-label">Object height above M1</span><span class="ctrl-val" id="vObjH">0 mm</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Object height above M1</span><span class="ctrl-val" id="vObjH">0 mm</span><button class="reset-btn" data-target="sObjH" title="Reset to preset value">↺</button></div>
         <input type="range" id="sObjH" min="-30" max="80" step="1" value="0">
       </div>
       <div class="ctrl">
-        <div class="ctrl-row"><span class="ctrl-label">Object lateral offset</span><span class="ctrl-val" id="vObjX">0 mm</span></div>
+        <div class="ctrl-row"><span class="ctrl-label">Object lateral offset</span><span class="ctrl-val" id="vObjX">0 mm</span><button class="reset-btn" data-target="sObjX" title="Reset to preset value">↺</button></div>
         <input type="range" id="sObjX" min="-50" max="50" step="1" value="0">
       </div>
     </div>
@@ -494,6 +494,14 @@ const S = {
   testMode: 'exact',     // 'exact' | 'matrix'
   viewMode: 'point',     // 'point' | 'ring'
   viewer: { x: 250, y: -120 },  // mm, in geometry coords (relative to canvas center)
+  currentPreset: 'classic',     // tracks which preset's defaults the reset buttons snap to
+};
+
+// Map slider IDs ↔ preset keys
+const SLIDER_TO_PRESET_KEY = {
+  sD1: 'D1', sf1: 'f1', sT1: 'T1', sR1: 'R1',
+  sD2: 'D2', sf2: 'f2', sA: 'A', sT2: 'T2', sR2: 'R2',
+  sDsep: 'dSep', sAxOff: 'axOff', sObjH: 'objH', sObjX: 'objX',
 };
 
 const PRESETS = {
@@ -501,7 +509,7 @@ const PRESETS = {
   model2000:  { D1:228, f1:80.6, T1:0, R1:90, D2:228, f2:80.6, A:62.5, T2:0, R2:90, dSep:80.6, axOff:0, objH:0, objX:0 },
   'ref-e40':  { D1:280, f1:100, T1:0, R1:95, D2:280, f2:100, A:30, T2:0, R2:95, dSep:100, axOff:0, objH:0, objX:0 },
   asym:       { D1:280, f1:80, T1:0, R1:95, D2:280, f2:120, A:50, T2:0, R2:95, dSep:100, axOff:0, objH:0, objX:0 },
-  raised:     { D1:280, f1:100, T1:0, R1:95, D2:280, f2:100, A:50, T2:0, R2:95, dSep:130, axOff:0, objH:5, objX:0 },
+  raised:     { D1:280, f1:100, T1:0, R1:95, D2:280, f2:100, A:50, T2:0, R2:95, dSep:100, axOff:0, objH:10, objX:0 },
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -523,15 +531,14 @@ function paraY(x, vx, vy, f, opensUp) {
 }
 
 function paraNormal(x, vx, f, opensUp) {
-  // Surface tangent slope: dy/dx = (x-vx)/(2f), opensUp adds sign
-  // Normal points INTO cavity (toward focus side)
-  const slope = (x - vx) / (2 * f) * (opensUp ? 1 : -1);
-  // tangent vector (1, slope); normal rotated 90°: (-slope, 1)
-  // For opensUp, focus is above, so normal points up (positive y component)
-  // For opensDown (M2), focus is below, normal points down
-  const nx = -slope;
+  // Inward normal (points toward the focus, into the cavity).
+  // For y = vy ± (x-vx)²/(4f):
+  //   tangent slope dy/dx = ±(x-vx)/(2f)
+  //   inward normal = (-(x-vx)/(2f), +1)  for opensUp (focus above)
+  //   inward normal = (-(x-vx)/(2f), -1)  for opensDown (focus below)
+  // Both share the same nx; only ny sign differs.
+  const nx = -(x - vx) / (2 * f);
   const ny = opensUp ? 1 : -1;
-  // normalize
   const len = Math.hypot(nx, ny);
   return { x: nx / len, y: ny / len };
 }
@@ -1492,6 +1499,24 @@ function update() {
   drawViewer();
 
   updateVerdict(imageResult, visResult, peepResult);
+  updateResetButtonStates();
+}
+
+// Update each reset button's appearance based on whether its slider is at preset value
+function updateResetButtonStates() {
+  const preset = PRESETS[S.currentPreset];
+  if (!preset) return;
+  document.querySelectorAll('.reset-btn').forEach(btn => {
+    const sliderId = btn.dataset.target;
+    const presetKey = SLIDER_TO_PRESET_KEY[sliderId];
+    if (presetKey === undefined) return;
+    const slider = $(sliderId);
+    if (!slider) return;
+    const presetVal = preset[presetKey];
+    const currentVal = +slider.value;
+    const modified = Math.abs(currentVal - presetVal) > 0.001;
+    btn.classList.toggle('modified', modified);
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1534,10 +1559,28 @@ document.querySelectorAll('.preset-btn').forEach(btn => {
     btn.classList.add('active');
     const p = PRESETS[btn.dataset.preset];
     if (!p) return;
-    Object.entries(p).forEach(([k, v]) => {
-      const slider = $('s' + k.charAt(0).toUpperCase() + k.slice(1));
-      if (slider) slider.value = v;
+    S.currentPreset = btn.dataset.preset;
+    // Use explicit map instead of capitalization heuristic (was buggy for f1, f2, dSep)
+    Object.entries(SLIDER_TO_PRESET_KEY).forEach(([sliderId, presetKey]) => {
+      if (p[presetKey] !== undefined) {
+        const slider = $(sliderId);
+        if (slider) slider.value = p[presetKey];
+      }
     });
+    update();
+  });
+});
+
+// Per-slider reset buttons
+document.querySelectorAll('.reset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const sliderId = btn.dataset.target;
+    const presetKey = SLIDER_TO_PRESET_KEY[sliderId];
+    const preset = PRESETS[S.currentPreset];
+    if (!preset || presetKey === undefined) return;
+    const slider = $(sliderId);
+    if (!slider) return;
+    slider.value = preset[presetKey];
     update();
   });
 });
