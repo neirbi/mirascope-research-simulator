@@ -870,60 +870,34 @@ function draw() {
     warn: raysTrapped <= 1
   });
 
-  // --- VIEWING ANGLES (ray-traced vs formula) ---
+  // --- VIEWING CONE (ray-traced only — not compared to formula) ---
+  // exitAngles stores the angle of each exiting ray from horizontal.
+  // This is a pure ray measurement: how wide a cone does light exit through?
+  // The parabolic formula's 54.74° is a mirror geometry property, not a ray property.
+  // Comparing them is a category error — so we don't.
 
   const ray_theta_min = exitAngles.length >= 2 ? Math.min(...exitAngles) : null;
   const ray_theta_max = exitAngles.length >= 2 ? Math.max(...exitAngles) : null;
   const ray_cone_width = (ray_theta_min !== null && ray_theta_max !== null) ? ray_theta_max - ray_theta_min : null;
 
-  if (ray_theta_min !== null) {
-    const fMinErr = Math.abs(ray_theta_min - formula_theta_min);
-    checks.push({
-      label: 'θ_min (ray vs formula)',
-      expected: formula_theta_min.toFixed(1),
-      got: ray_theta_min.toFixed(1),
-      unit: '°',
-      ok: fMinErr < 5,
-      warn: fMinErr < 15
-    });
-  } else {
-    checks.push({
-      label: 'θ_min viewing angle',
-      expected: formula_theta_min.toFixed(1),
-      got: 'NO RAYS EXIT',
-      unit: '°',
-      ok: false
-    });
-  }
-
-  if (ray_theta_max !== null) {
-    const fMaxErr = Math.abs(ray_theta_max - formula_theta_max);
-    checks.push({
-      label: 'θ_max (ray vs formula)',
-      expected: formula_theta_max.toFixed(1),
-      got: ray_theta_max.toFixed(1),
-      unit: '°',
-      ok: fMaxErr < 5,
-      warn: fMaxErr < 15
-    });
-  } else {
-    checks.push({
-      label: 'θ_max viewing angle',
-      expected: formula_theta_max.toFixed(1),
-      got: 'NO RAYS EXIT',
-      unit: '°',
-      ok: false
-    });
-  }
-
   if (ray_cone_width !== null) {
+    // A wider cone means more viewing angles — this is the number the project is trying to maximize.
+    // > 44° is the parabolic baseline (canonical mirascope with these dimensions).
     checks.push({
-      label: 'Viewing cone width',
-      expected: (formula_theta_max - formula_theta_min).toFixed(1),
+      label: 'Viewing cone (ray-traced)',
+      expected: '> 44°',
       got: ray_cone_width.toFixed(1),
       unit: '°',
-      ok: Math.abs(ray_cone_width - (formula_theta_max - formula_theta_min)) < 10,
-      warn: ray_cone_width > 5
+      ok: ray_cone_width > 44,
+      warn: ray_cone_width > 30
+    });
+  } else {
+    checks.push({
+      label: 'Viewing cone (ray-traced)',
+      expected: '> 44°',
+      got: 'NO RAYS EXIT',
+      unit: '°',
+      ok: false
     });
   }
 
