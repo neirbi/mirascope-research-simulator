@@ -1563,6 +1563,83 @@ Ratios scale to any device size.</span>`;
   </div>
 
 </div>
+
+<div style="max-width:50rem;width:100%;margin:2px 0;font-family:'SF Mono','Fira Code',Consolas,monospace;font-size:0.75rem;line-height:1;background:transparent;">
+
+  <!-- CHECKLIST HEADER -->
+  <div style="background:#0d0d0d;border-left:4px solid #2a6a8a;padding:0.75rem 1rem;margin-bottom:1px;">
+    <span style="color:#4aabcf;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">Research Checklist</span>
+    <span style="color:#444;margin-left:1rem;">mirascope optimal geometry · all phases · Elijah · 2026</span>
+  </div>
+
+  <!-- PHASE 1 -->
+  <div style="background:#111;border-left:4px solid #1a4a1a;padding:0.6rem 1rem;margin-bottom:1px;">
+    <span style="color:#40f040;font-weight:700;letter-spacing:0.06em;">PHASE 1 — PARABOLIC FAMILY</span>
+    <span style="color:#40f040;margin-left:0.75rem;">✓ COMPLETE · ceiling 58.18°</span>
+  </div>
+
+  <div style="background:#161616;padding:0.5rem 1rem;margin-bottom:1px;display:grid;grid-template-columns:1.2rem 1fr;gap:0.3rem 0.75rem;align-items:start;">
+    <span style="color:#40f040;">✓</span><span style="color:#777;">Canonical symmetric config (f1=f2=d_sep) — <span style="color:#555;">baseline 44°</span></span>
+    <span style="color:#40f040;">✓</span><span style="color:#777;">Asymmetric focal lengths (f1 ≠ f2) — <span style="color:#ccc;">optimal f1/d=0.923 · f2/d=1.091</span></span>
+    <span style="color:#40f040;">✓</span><span style="color:#777;">Aperture ratio as free variable — <span style="color:#ccc;">optimal ap/D=0.10</span></span>
+    <span style="color:#40f040;">✓</span><span style="color:#777;">Separation distance range — <span style="color:#ccc;">scale only, ratios are all that matter</span></span>
+    <span style="color:#40f040;">✓</span><span style="color:#777;">Multi-point object (3 heights, intersection) — <span style="color:#ccc;">window 58.18°</span></span>
+    <span style="color:#40f040;">✓</span><span style="color:#777;">Edge trimming — <span style="color:#555;">subsumed by ap/D=0.10 finding</span></span>
+    <span style="color:#40f040;">✓</span><span style="color:#777;">Raised separation / larger device — <span style="color:#555;">subsumed by d_sep scale finding</span></span>
+    <span style="color:#555;">—</span><span style="color:#444;">Curved edges — <span style="color:#333;font-style:italic;">skip · fabrication not optics · no sim model</span></span>
+  </div>
+
+  <!-- PHASE 2 -->
+  <div style="background:#111;border-left:4px solid #1a1a4a;padding:0.6rem 1rem;margin-bottom:1px;margin-top:2px;">
+    <span style="color:#4a4acf;font-weight:700;letter-spacing:0.06em;">PHASE 2 — PATH GEOMETRY</span>
+    <span style="color:#444;margin-left:0.75rem;">○ NOT STARTED</span>
+  </div>
+
+  <div style="background:#161616;padding:0.5rem 1rem;margin-bottom:1px;display:grid;grid-template-columns:1.2rem 1fr;gap:0.3rem 0.75rem;align-items:start;">
+    <span style="color:#333;">☐</span><span style="color:#666;">4-bounce paths — does longer path produce wider exit angles?</span>
+    <span style="color:#333;">☐</span><span style="color:#666;">6-bounce paths — secondary images, wider still?</span>
+    <span style="color:#333;">☐</span><span style="color:#666;">Aperture location — off-center, bottom mirror, side</span>
+    <span style="color:#333;">☐</span><span style="color:#666;">Aperture shape — circular vs slot vs annular ring</span>
+  </div>
+
+  <!-- PHASE 3 -->
+  <div style="background:#111;border-left:4px solid #1a1a4a;padding:0.6rem 1rem;margin-bottom:1px;margin-top:2px;">
+    <span style="color:#4a4acf;font-weight:700;letter-spacing:0.06em;">PHASE 3 — MIRROR CONFIGURATION</span>
+    <span style="color:#444;margin-left:0.75rem;">○ NOT STARTED</span>
+  </div>
+
+  <div style="background:#161616;padding:0.5rem 1rem;margin-bottom:1px;display:grid;grid-template-columns:1.2rem 1fr;gap:0.3rem 0.75rem;align-items:start;">
+    <span style="color:#333;">☐</span><span style="color:#666;">Symmetric axis tilt — mirrors angled toward each other (V shape)</span>
+    <span style="color:#333;">☐</span><span style="color:#666;">Lateral offset — top mirror shifted off-axis</span>
+    <span style="color:#333;">☐</span><span style="color:#666;">One mirror flat, one concave — hybrid configuration</span>
+    <span style="color:#333;">☐</span><span style="color:#666;">Unequal mirror diameters — top and bottom different sizes</span>
+  </div>
+
+  <!-- PHASE 4 -->
+  <div style="background:#111;border-left:4px solid #1a1a4a;padding:0.6rem 1rem;margin-bottom:1px;margin-top:2px;">
+    <span style="color:#4a4acf;font-weight:700;letter-spacing:0.06em;">PHASE 4 — NON-PARABOLIC SHAPES</span>
+    <span style="color:#444;margin-left:0.75rem;">○ NOT STARTED · requires new simulator</span>
+  </div>
+
+  <div style="background:#161616;padding:0.5rem 1rem;margin-bottom:1px;display:grid;grid-template-columns:1.2rem 1fr;gap:0.3rem 0.75rem;align-items:start;">
+    <span style="color:#333;">☐</span><span style="color:#666;">Spherical mirrors — simpler to manufacture, how much do they lose?</span>
+    <span style="color:#333;">☐</span><span style="color:#666;">Elliptical mirrors — different conic section</span>
+    <span style="color:#333;">☐</span><span style="color:#666;">Freeform surface — control points, optimizer finds the shape</span>
+    <span style="color:#333;">☐</span><span style="color:#666;">Composite surface — parabolic center, different curve at rim</span>
+  </div>
+
+  <!-- OPEN QUESTIONS -->
+  <div style="background:#0d0d0d;border-left:4px solid #2a2a2a;padding:0.75rem 1rem;margin-top:2px;color:#555;">
+    <div style="color:#666;font-weight:700;margin-bottom:0.5rem;">OPEN QUESTIONS</div>
+    <div style="margin-bottom:0.3rem;">? Does optimal shape change with object size ratio?</div>
+    <div style="margin-bottom:0.3rem;">? Is there a theoretical maximum viewing angle from first principles?</div>
+    <div style="margin-bottom:0.3rem;">? Do 4-bounce paths share the same image point as 2-bounce paths?</div>
+    <div style="margin-bottom:0.3rem;">? Can aperture location and mirror tilt be co-optimized?</div>
+    <div style="margin-bottom:0.3rem;">? Does the asymmetric optimum (f1≠f2) hold for non-parabolic shapes?</div>
+  </div>
+
+</div>
+
 <div class="caption">
   Self-validating mirascope ray trace simulator · Based on analysis by Adhya &amp; Noé (Stony Brook, 2007) · Original device by Elings &amp; Landry (US 3,647,284, 1972) · Elijah · 5/4/2026
 </div>
