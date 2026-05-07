@@ -291,6 +291,27 @@ canvas {
 
 <div id="validator"></div>
 
+<div id="optimizer-ui" style="max-width:50rem;width:100%;margin:2px 0;">
+  <button id="opt-btn" onclick="runOptimizer()" style="
+    width:100%;padding:0.85rem 1rem;
+    background:#1a0a0a;border:none;border-left:4px solid #d44;
+    color:#d44;font-family:'SF Mono','Fira Code',Consolas,monospace;
+    font-size:0.85rem;font-weight:700;letter-spacing:0.08em;
+    text-transform:uppercase;cursor:pointer;text-align:left;
+    transition:background 0.15s;">
+    ▶ FIND OPTIMAL MIRROR GEOMETRY — exhaustive search over f₁, f₂, d_sep
+  </button>
+  <div id="opt-result" style="display:none;background:#0a0a0a;border-left:4px solid #40f040;
+    padding:0.85rem 1rem;font-family:'SF Mono','Fira Code',Consolas,monospace;
+    font-size:0.8rem;color:#ccc;line-height:1.8;margin-top:2px;">
+  </div>
+  <div id="opt-progress" style="display:none;background:#161616;border-left:4px solid #666;
+    padding:0.6rem 1rem;font-family:'SF Mono','Fira Code',Consolas,monospace;
+    font-size:0.75rem;color:#666;margin-top:2px;">
+    searching...
+  </div>
+</div>
+
 <script>
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
@@ -870,34 +891,60 @@ function draw() {
     warn: raysTrapped <= 1
   });
 
-  // --- VIEWING CONE (ray-traced only — not compared to formula) ---
-  // exitAngles stores the angle of each exiting ray from horizontal.
-  // This is a pure ray measurement: how wide a cone does light exit through?
-  // The parabolic formula's 54.74° is a mirror geometry property, not a ray property.
-  // Comparing them is a category error — so we don't.
+  // --- VIEWING ANGLES (ray-traced vs formula) ---
 
   const ray_theta_min = exitAngles.length >= 2 ? Math.min(...exitAngles) : null;
   const ray_theta_max = exitAngles.length >= 2 ? Math.max(...exitAngles) : null;
   const ray_cone_width = (ray_theta_min !== null && ray_theta_max !== null) ? ray_theta_max - ray_theta_min : null;
 
-  if (ray_cone_width !== null) {
-    // A wider cone means more viewing angles — this is the number the project is trying to maximize.
-    // > 44° is the parabolic baseline (canonical mirascope with these dimensions).
+  if (ray_theta_min !== null) {
+    const fMinErr = Math.abs(ray_theta_min - formula_theta_min);
     checks.push({
-      label: 'Viewing cone (ray-traced)',
-      expected: '> 44°',
-      got: ray_cone_width.toFixed(1),
+      label: 'θ_min (ray vs formula)',
+      expected: formula_theta_min.toFixed(1),
+      got: ray_theta_min.toFixed(1),
       unit: '°',
-      ok: ray_cone_width > 44,
-      warn: ray_cone_width > 30
+      ok: fMinErr < 5,
+      warn: fMinErr < 15
     });
   } else {
     checks.push({
-      label: 'Viewing cone (ray-traced)',
-      expected: '> 44°',
+      label: 'θ_min viewing angle',
+      expected: formula_theta_min.toFixed(1),
       got: 'NO RAYS EXIT',
       unit: '°',
       ok: false
+    });
+  }
+
+  if (ray_theta_max !== null) {
+    const fMaxErr = Math.abs(ray_theta_max - formula_theta_max);
+    checks.push({
+      label: 'θ_max (ray vs formula)',
+      expected: formula_theta_max.toFixed(1),
+      got: ray_theta_max.toFixed(1),
+      unit: '°',
+      ok: fMaxErr < 5,
+      warn: fMaxErr < 15
+    });
+  } else {
+    checks.push({
+      label: 'θ_max viewing angle',
+      expected: formula_theta_max.toFixed(1),
+      got: 'NO RAYS EXIT',
+      unit: '°',
+      ok: false
+    });
+  }
+
+  if (ray_cone_width !== null) {
+    checks.push({
+      label: 'Viewing cone width',
+      expected: (formula_theta_max - formula_theta_min).toFixed(1),
+      got: ray_cone_width.toFixed(1),
+      unit: '°',
+      ok: Math.abs(ray_cone_width - (formula_theta_max - formula_theta_min)) < 10,
+      warn: ray_cone_width > 5
     });
   }
 
@@ -1127,6 +1174,222 @@ function draw() {
 
 document.querySelectorAll('input[type=range]').forEach(el => el.addEventListener('input', draw));
 draw();
+
+// ========== OPTIMIZER ==========
+// Pure math — no canvas, no DOM reads. Extracted from draw().
+// Returns { coneWidth, exitPct, spread, f1, f2, dSep } for a given config.
+
+function traceConfig(f1, f2, dSep, hObj, ap, nRays) {
+  const vy1 = -dSep / 2;
+  const vy2 = dSep / 2;
+  const rimSq = 4 * f1 * f2 * dSep / (f1 + f2);
+  if (rimSq <= 0) return null;
+  const halfW = Math.sqrt(rimSq);
+  const apHalf = ap / 2;
+
+  if (dSep >= 2 * Math.min(f1, f2)) return null; // divergent
+  if (hObj >= f1) return null; // object beyond focus
+
+  const objX = 0, objY = vy1 + hObj;
+
+  function parY(x, f, vy, s) { return s * x * x / (4 * f) + vy; }
+
+  function norm(x, f, s) {
+    const nx = -x / (2 * f), ny = s;
+    const len = Math.sqrt(nx*nx + ny*ny);
+    return [nx/len, ny/len];
+  }
+
+  function refl(dx, dy, nx, ny) {
+    const dot = dx*nx + dy*ny;
+    return [dx - 2*dot*nx, dy - 2*dot*ny];
+  }
+
+  function rayPar(ox, oy, dx, dy, f, vy, s) {
+    const u = ox, v = oy - vy, ff = 4*f;
+    const A = s*dx*dx/ff;
+    const B = 2*s*u*dx/ff - dy;
+    const C = s*u*u/ff - v;
+    if (Math.abs(A) < 1e-12) {
+      if (Math.abs(B) < 1e-12) return null;
+      const t = -C/B; return t > 0.001 ? t : null;
+    }
+    const disc = B*B - 4*A*C;
+    if (disc < 0) return null;
+    const sq = Math.sqrt(disc);
+    const t1 = (-B-sq)/(2*A), t2 = (-B+sq)/(2*A);
+    let t = null;
+    if (t1 > 0.001) t = t1;
+    if (t2 > 0.001 && (t === null || t2 < t)) t = t2;
+    return t;
+  }
+
+  function crossY(ox, oy, dx, dy, ly) {
+    if (Math.abs(dy) < 1e-12) return null;
+    const t = (ly - oy) / dy;
+    return t < 0.001 ? null : ox + t*dx;
+  }
+
+  const convergencePoints = [], exitAngles = [];
+  let completed = 0, attempted = 0;
+
+  for (let i = 0; i < nRays; i++) {
+    const angle = -70 + 140*(i+0.5)/nRays;
+    const theta = angle * Math.PI/180;
+    const dx = Math.sin(theta), dy = Math.cos(theta);
+    attempted++;
+
+    const t2 = rayPar(objX, objY, dx, dy, f2, vy2, -1);
+    if (t2 === null) continue;
+    const hx2 = objX + t2*dx, hy2 = objY + t2*dy;
+    if (Math.abs(hx2) > halfW || Math.abs(hx2) < apHalf) continue;
+
+    const [n2x,n2y] = norm(hx2, f2, -1);
+    const [rx2,ry2] = refl(dx, dy, n2x, n2y);
+
+    const t1 = rayPar(hx2, hy2, rx2, ry2, f1, vy1, +1);
+    if (t1 === null) continue;
+    const hx1 = hx2 + t1*rx2, hy1 = hy2 + t1*ry2;
+    if (Math.abs(hx1) > halfW) continue;
+    if (Math.abs(hy1 - parY(hx1, f1, vy1, +1)) > 0.5) continue;
+
+    const [n1x,n1y] = norm(hx1, f1, +1);
+    const [rx1,ry1] = refl(rx2, ry2, n1x, n1y);
+
+    const t2b = rayPar(hx1, hy1, rx1, ry1, f2, vy2, -1);
+    let hitsM2 = false;
+    if (t2b !== null) {
+      const rhx = hx1 + t2b*rx1;
+      if (Math.abs(rhx) >= apHalf && Math.abs(rhx) <= halfW) hitsM2 = true;
+    }
+
+    const cx = crossY(hx1, hy1, rx1, ry1, vy2);
+    if (cx !== null && Math.abs(cx) < apHalf && !hitsM2) {
+      completed++;
+      exitAngles.push(Math.atan2(Math.abs(ry1), Math.abs(rx1)) * 180/Math.PI);
+      if (Math.abs(rx1) > 1e-6) {
+        const tA = -hx1/rx1;
+        if (tA > 0) {
+          const cY = hy1 + tA*ry1;
+          if (cY >= vy2 - 5) convergencePoints.push(cY);
+        }
+      }
+    }
+  }
+
+  if (exitAngles.length < 2) return null;
+
+  const convergenceCount = convergencePoints.length;
+  const spread = convergenceCount > 1
+    ? Math.max(...convergencePoints) - Math.min(...convergencePoints) : Infinity;
+  const coneWidth = Math.max(...exitAngles) - Math.min(...exitAngles);
+  const exitPct = completed / attempted * 100;
+  const imgY = convergenceCount > 0
+    ? convergencePoints.reduce((a, b) => a + b, 0) / convergenceCount : null;
+
+  return { coneWidth, exitPct, spread, convergenceCount, imgY, f1, f2, dSep };
+}
+
+function runOptimizer() {
+  const btn = document.getElementById('opt-btn');
+  const resultDiv = document.getElementById('opt-result');
+  const progressDiv = document.getElementById('opt-progress');
+
+  btn.style.color = '#666';
+  btn.style.borderLeftColor = '#444';
+  btn.textContent = '⏳ SEARCHING...';
+  btn.disabled = true;
+  resultDiv.style.display = 'none';
+  progressDiv.style.display = 'block';
+
+  const hObj = parseFloat(document.getElementById('sh').value);
+  const ap   = parseFloat(document.getElementById('sa').value);
+
+  // Search grid: f1, f2, dSep each 40 steps → 64,000 configs
+  const fVals   = Array.from({length:40}, (_,i) => 40 + i*3);    // 40–157mm
+  const dVals   = Array.from({length:40}, (_,i) => 40 + i*3);    // 40–157mm
+  const nRays   = 20; // fast for search; display uses slider value
+
+  let best = null;
+  let checked = 0;
+  const total = fVals.length * fVals.length * dVals.length;
+
+  // Run in chunks so the browser doesn't freeze
+  function chunk(f1i, f2i, di) {
+    const t0 = performance.now();
+    while (true) {
+      if (f1i >= fVals.length) { done(); return; }
+      const f1 = fVals[f1i];
+      const f2 = fVals[f2i];
+      const dSep = dVals[di];
+
+      const r = traceConfig(f1, f2, dSep, hObj, ap, nRays);
+      checked++;
+
+      // Valid image requires: rays converge above the aperture, tight spread, enough rays exit
+      const vy2_check = dSep / 2;
+      if (r && r.convergenceCount >= 2 && r.spread < 2 && r.exitPct > 40 && r.imgY !== null && r.imgY >= vy2_check - 1) {
+        if (!best || r.coneWidth > best.coneWidth) best = r;
+      }
+
+      // Advance indices
+      di++;
+      if (di >= dVals.length) { di = 0; f2i++; }
+      if (f2i >= fVals.length) { f2i = 0; f1i++; }
+
+      if (performance.now() - t0 > 16) { // yield every ~16ms (1 frame)
+        progressDiv.textContent = `searching... ${Math.round(checked/total*100)}% (${checked.toLocaleString()} / ${total.toLocaleString()})`;
+        setTimeout(() => chunk(f1i, f2i, di), 0);
+        return;
+      }
+    }
+  }
+
+  function done() {
+    btn.disabled = false;
+    btn.style.color = '#d44';
+    btn.style.borderLeftColor = '#d44';
+    btn.textContent = '▶ FIND OPTIMAL MIRROR GEOMETRY — exhaustive search over f₁, f₂, d_sep';
+    progressDiv.style.display = 'none';
+
+    if (!best) {
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = '<span style="color:#f04040">No valid configuration found in search range.</span>';
+      return;
+    }
+
+    // Apply best to sliders
+    const setSlider = (id, val) => {
+      const el = document.getElementById(id);
+      el.value = Math.max(parseFloat(el.min), Math.min(parseFloat(el.max), Math.round(val)));
+      document.getElementById('v' + id.slice(1)).textContent = el.value;
+    };
+    setSlider('sf',  best.f1);
+    setSlider('sf2', best.f2);
+    setSlider('sd',  best.dSep);
+    draw();
+
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = `
+<span style="color:#40f040;font-weight:700">OPTIMAL PARABOLIC CONFIGURATION FOUND</span>
+──────────────────────────────────────────
+f₁ (bottom) : <span style="color:#d44">${best.f1} mm</span>
+f₂ (top)    : <span style="color:#d44">${best.f2} mm</span>
+d_sep       : <span style="color:#d44">${best.dSep} mm</span>
+──────────────────────────────────────────
+Viewing cone : <span style="color:#40f040;font-weight:700">${best.coneWidth.toFixed(1)}°</span>
+Rays exiting : ${best.exitPct.toFixed(0)}%
+Spread       : ${best.spread.toFixed(2)} mm
+Convergence  : ${best.convergenceCount} rays confirmed
+Image above aperture : ${(best.imgY - best.dSep/2).toFixed(1)} mm
+──────────────────────────────────────────
+<span style="color:#666">Sliders updated. This is the widest viewing cone
+the parabolic shape can achieve given your h_obj
+and aperture settings.</span>`;
+  }
+
+  setTimeout(() => chunk(0, 0, 0), 0);
+}
 </script>
 
 <div class="caption">
