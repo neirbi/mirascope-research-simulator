@@ -1552,6 +1552,26 @@
                         <div class="sim__btn-row">
                             <button type="button" class="sim__run" id="sim-run">Run Simulation</button>
                             <button type="button" class="sim__btn-secondary" id="sim-validate">Validate Physics</button>
+                            <button type="button" class="sim__btn-secondary" id="sim-optimize">Optimize Shape</button>
+                        </div>
+
+                        <!-- Optimizer readout. Hidden until Optimize Shape has run.
+                             Reports the viewing-angle delta plus the four mirror
+                             parameters the search converged on, so the user can see
+                             both the win and the geometry that produced it. -->
+                        <div class="sim__validator" id="sim-optimizer-readout" hidden>
+                            <div class="sim__val-test">
+                                <div class="sim__val-summary-row">
+                                    <span class="sim__val-label">Optimizer</span>
+                                    <span class="sim__val-status" id="sim-opt-status">—</span>
+                                </div>
+                                <div class="sim__val-summary-row">
+                                    <span id="sim-opt-summary">—</span>
+                                </div>
+                                <div class="sim__val-summary-row">
+                                    <span id="sim-opt-params">—</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -2202,6 +2222,242 @@
                     return { p, ledData };
                 };
 
+                // ─────────────────────────────────────────────────────────
+                // OPTIMIZER — Nelder-Mead simplex over (f1, f2, dsep, a)
+                //
+                // Holds h_obj, obj_d, nrays, nbounces fixed. Maximizes the
+                // viewing-angle stat (max half-angle from vertical across
+                // escaped rays) subject to soft constraints:
+                //   • h_obj < f1                  (real image possible)
+                //   • halfW > 0                   (rim geometry valid)
+                //   • a < D                       (aperture < rim)
+                //   • escaped rays > 0            (non-degenerate trace)
+                //   • on-axis image must be real  (imagePoint exists)
+                //   • worst-LED spot RMS ≤ 1.5× baseline (image still sharp)
+                //
+                // The trace pipeline is duplicated here in a DOM-free form so
+                // the optimizer can call it ~hundreds of times per click
+                // without touching the SVG or any input fields. nrays is
+                // bumped to ≥24 internally so the discrete viewing-angle
+                // surface is smooth enough for simplex to descend.
+                //
+                // ─────────────────────────────────────────────────────────
+                const evalGeometry = (f1, f2, dsep, a, h_obj, obj_d, nrays, nbounces) => {
+                    const rimSq = (4 * f1 * f2 * dsep) / (f1 + f2);
+                    const halfW = rimSq > 0 ? Math.sqrt(rimSq) : 0;
+                    if (halfW <= 0) return { feasible: false, reason: 'rim' };
+                    const p = {
+                        f1, f2, dsep, a, h_obj, obj_d, nrays, nbounces,
+                        vy1: -dsep / 2, vy2: +dsep / 2, halfW, D: 2 * halfW,
+                    };
+                    const ledOffsets = [-obj_d / 2, 0, +obj_d / 2];
+                    let totalEscaped = 0;
+                    let maxHalfAngle = 0;
+                    let worstSpotRMS = 0;
+                    let centerImageReal = false;
+
+                    for (let i = 0; i < ledOffsets.length; i++) {
+                        const ledX = ledOffsets[i];
+                        const objY = parabolaY(ledX, f1, +1, p.vy1) + h_obj;
+                        const escapedRays = [];
+                        for (let r = 0; r < nrays; r++) {
+                            const frac = (r + 0.5) / nrays;
+                            const angleDeg = -70 + 140 * frac;
+                            const theta = angleDeg * Math.PI / 180;
+                            const dx = Math.sin(theta);
+                            const dy = Math.cos(theta);
+                            const result = traceRay(ledX, objY, dx, dy, p);
+                            if (result.escaped && result.exitDir) {
+                                totalEscaped++;
+                                escapedRays.push({ point: result.exitPoint, dir: result.exitDir });
+                                const [vx, vy] = result.exitDir;
+                                if (vy > 0) {
+                                    const ang = Math.atan2(Math.abs(vx), vy) * 180 / Math.PI;
+                                    if (ang > maxHalfAngle) maxHalfAngle = ang;
+                                }
+                            }
+                        }
+                        const raw = findConvergence(escapedRays);
+                        let imagePoint = null;
+                        if (raw && Number.isFinite(raw[0]) && Number.isFinite(raw[1])) {
+                            const m2SurfY = p.vy2 - (raw[0] * raw[0]) / (4 * f2);
+                            if (raw[1] >= m2SurfY - 0.5 && raw[1] < p.vy2 + dsep * 3) {
+                                imagePoint = raw;
+                            }
+                        }
+                        if (i === 1 && imagePoint) centerImageReal = true;
+                        if (imagePoint && escapedRays.length > 0) {
+                            const [ix, iy] = imagePoint;
+                            let sumSq = 0, n = 0;
+                            for (const { point: [ex, ey], dir: [vx, vy] } of escapedRays) {
+                                if (Math.abs(vy) < 1e-12) continue;
+                                const t = (iy - ey) / vy;
+                                const off = ex + t * vx - ix;
+                                sumSq += off * off;
+                                n++;
+                            }
+                            if (n > 0) {
+                                const rms = Math.sqrt(sumSq / n);
+                                if (rms > worstSpotRMS) worstSpotRMS = rms;
+                            }
+                        }
+                    }
+                    return {
+                        feasible: true,
+                        halfW, D: 2 * halfW,
+                        totalEscaped, maxHalfAngle,
+                        worstSpotRMS, centerImageReal,
+                    };
+                };
+
+                // Standard Nelder-Mead. Accepts a scalar objective to MINIMIZE
+                // and an initial simplex. Returns the best vertex found.
+                const nelderMead = (fn, x0, step, maxIter = 200, tol = 1e-4) => {
+                    const n = x0.length;
+                    const simplex = [{ x: x0.slice(), f: fn(x0) }];
+                    for (let i = 0; i < n; i++) {
+                        const x = x0.slice();
+                        x[i] += step[i];
+                        simplex.push({ x, f: fn(x) });
+                    }
+                    const sortS = () => simplex.sort((a, b) => a.f - b.f);
+                    for (let iter = 0; iter < maxIter; iter++) {
+                        sortS();
+                        const best = simplex[0], worst = simplex[n], second = simplex[n - 1];
+                        // Convergence: simplex collapsed in either f or x.
+                        const fSpread = Math.abs(worst.f - best.f);
+                        if (fSpread < tol) break;
+                        // Centroid of all but worst.
+                        const c = new Array(n).fill(0);
+                        for (let i = 0; i < n; i++) {
+                            for (let j = 0; j < n; j++) c[j] += simplex[i].x[j];
+                        }
+                        for (let j = 0; j < n; j++) c[j] /= n;
+                        // Reflect.
+                        const xr = c.map((cj, j) => cj + (cj - worst.x[j]));
+                        const fr = fn(xr);
+                        if (fr < second.f && fr >= best.f) {
+                            simplex[n] = { x: xr, f: fr };
+                            continue;
+                        }
+                        // Expand.
+                        if (fr < best.f) {
+                            const xe = c.map((cj, j) => cj + 2 * (cj - worst.x[j]));
+                            const fe = fn(xe);
+                            simplex[n] = fe < fr ? { x: xe, f: fe } : { x: xr, f: fr };
+                            continue;
+                        }
+                        // Contract.
+                        const xc = c.map((cj, j) => cj + 0.5 * (worst.x[j] - cj));
+                        const fc = fn(xc);
+                        if (fc < worst.f) {
+                            simplex[n] = { x: xc, f: fc };
+                            continue;
+                        }
+                        // Shrink toward best.
+                        for (let i = 1; i <= n; i++) {
+                            const x = simplex[i].x.map((xj, j) => best.x[j] + 0.5 * (xj - best.x[j]));
+                            simplex[i] = { x, f: fn(x) };
+                        }
+                    }
+                    sortS();
+                    return simplex[0];
+                };
+
+                const optimize = () => {
+                    const readout = document.getElementById('sim-optimizer-readout');
+                    const statusEl = document.getElementById('sim-opt-status');
+                    const summaryEl = document.getElementById('sim-opt-summary');
+                    const paramsEl = document.getElementById('sim-opt-params');
+                    readout.hidden = false;
+                    statusEl.textContent = 'searching…';
+                    statusEl.removeAttribute('data-status');
+                    summaryEl.textContent = '';
+                    paramsEl.textContent = '';
+
+                    const cur = readParams();
+                    const h_obj = cur.h_obj, obj_d = cur.obj_d;
+                    const nbounces = cur.nbounces;
+                    // Bump ray count internally so the angle surface is smooth.
+                    const nraysOpt = Math.max(cur.nrays, 24);
+
+                    const baseline = evalGeometry(cur.f1, cur.f2, cur.dsep, cur.a, h_obj, obj_d, nraysOpt, nbounces);
+                    // Spot constraint reference: at least 1 mm tolerance, otherwise
+                    // 1.5× the current design's worst-LED RMS — whichever is larger.
+                    const spotCap = Math.max(1.0, (baseline.feasible ? baseline.worstSpotRMS : 1.0) * 1.5);
+
+                    // Bounds match the slider ranges so the optimum is reachable
+                    // by the controls without re-clipping.
+                    const LO = [10, 10, 20, 2];
+                    const HI = [200, 200, 300, 200];
+
+                    const objective = (xRaw) => {
+                        // Project into bounds (soft via penalty so simplex still
+                        // gets gradient information when it reaches a bound).
+                        const x = xRaw.map((v, i) => Math.min(HI[i], Math.max(LO[i], v)));
+                        let boundsPenalty = 0;
+                        for (let i = 0; i < 4; i++) boundsPenalty += Math.max(0, LO[i] - xRaw[i]) + Math.max(0, xRaw[i] - HI[i]);
+                        const [f1, f2, dsep, a] = x;
+                        // Hard structural constraint: object inside focal length.
+                        if (f1 <= h_obj + 1) return 1000 + (h_obj + 1 - f1) * 10 + boundsPenalty;
+                        const r = evalGeometry(f1, f2, dsep, a, h_obj, obj_d, nraysOpt, nbounces);
+                        if (!r.feasible) return 1000 + boundsPenalty;
+                        if (r.D <= a + 1) return 800 + (a + 1 - r.D) * 5 + boundsPenalty;
+                        if (r.totalEscaped < 3) return 600 - r.totalEscaped + boundsPenalty;
+                        if (!r.centerImageReal) return 400 + boundsPenalty;
+                        let penalty = boundsPenalty;
+                        if (r.worstSpotRMS > spotCap) {
+                            penalty += (r.worstSpotRMS - spotCap) * 50;
+                        }
+                        // Minimize negative angle.
+                        return -r.maxHalfAngle + penalty;
+                    };
+
+                    const x0 = [cur.f1, cur.f2, cur.dsep, cur.a];
+                    // Step sizes ~10% of each parameter's range.
+                    const step = [(HI[0] - LO[0]) * 0.1, (HI[1] - LO[1]) * 0.1, (HI[2] - LO[2]) * 0.1, (HI[3] - LO[3]) * 0.1];
+
+                    const best = nelderMead(objective, x0, step, 250, 1e-3);
+                    const xOpt = best.x.map((v, i) => Math.min(HI[i], Math.max(LO[i], v)));
+                    const [f1o, f2o, dsepo, ao] = xOpt;
+                    const result = evalGeometry(f1o, f2o, dsepo, ao, h_obj, obj_d, nraysOpt, nbounces);
+
+                    const baseAngle = baseline.feasible && baseline.totalEscaped > 0 ? baseline.maxHalfAngle : null;
+                    const newAngle = result.feasible && result.totalEscaped > 0 ? result.maxHalfAngle : null;
+
+                    if (newAngle === null || (baseAngle !== null && newAngle <= baseAngle + 0.1)) {
+                        statusEl.textContent = 'no improvement';
+                        statusEl.setAttribute('data-status', 'skip');
+                        summaryEl.textContent = baseAngle !== null
+                            ? `Current geometry already at ${baseAngle.toFixed(1)}° within search bounds.`
+                            : 'Search did not converge to a feasible geometry. Try widening h_obj or Ø_obj.';
+                        paramsEl.textContent = '';
+                        return;
+                    }
+
+                    // Round to slider precision and write back.
+                    const f1r = Math.round(f1o), f2r = Math.round(f2o), dsepr = Math.round(dsepo), ar = Math.round(ao);
+                    const setVal = (id, v) => {
+                        document.getElementById(id).value = v;
+                        const range = document.getElementById(id + '-range');
+                        if (range) range.value = v;
+                    };
+                    setVal('sim-f1', f1r);
+                    setVal('sim-f2', f2r);
+                    setVal('sim-dsep', dsepr);
+                    setVal('sim-aperture', ar);
+
+                    // Re-run with the user's original nrays for the visible plot.
+                    run();
+
+                    statusEl.textContent = 'converged';
+                    statusEl.setAttribute('data-status', 'pass');
+                    const baseStr = baseAngle !== null ? `${baseAngle.toFixed(1)}°` : 'invalid';
+                    const delta = baseAngle !== null ? ` (Δ +${(newAngle - baseAngle).toFixed(1)}°)` : '';
+                    summaryEl.textContent = `Viewing angle: ${baseStr} → ${newAngle.toFixed(1)}°${delta}. Worst spot RMS ${result.worstSpotRMS < 1 ? (result.worstSpotRMS * 1000).toFixed(1) + ' µm' : result.worstSpotRMS.toFixed(2) + ' mm'}.`;
+                    paramsEl.textContent = `f₁=${f1r} mm · f₂=${f2r} mm · d_sep=${dsepr} mm · a=${ar} mm · D=${result.D.toFixed(1)} mm`;
+                };
+
                 // Reversibility validator: time-reversal symmetry says every escaped
                 // ray, traced backward from its exit through the same number of
                 // reflections, must end aligned with its original source. The residual
@@ -2425,6 +2681,7 @@
 
                 document.getElementById('sim-run').addEventListener('click', run);
                 document.getElementById('sim-validate').addEventListener('click', validate);
+                document.getElementById('sim-optimize').addEventListener('click', optimize);
                 run();
 
                 return { run, validate };
