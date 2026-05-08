@@ -1637,65 +1637,71 @@
                     root.appendChild(make('path', { ...mirrorAttrs, d: parabolaPath(p.f1, +1, p.vy1, p.halfW) }));
                     root.appendChild(make('path', { ...mirrorAttrs, d: parabolaPathWithGap(p.f2, -1, p.vy2, p.halfW, p.a) }));
 
-                    // Render rays
+                    // For one ray, return the (focus,far) parameter pair along its exit
+                    // line: tImg is the distance to the convergence point (null if none),
+                    // tFar is always the same fixed extension past the aperture so each
+                    // LED's cone reaches the same height regardless of focus distance.
+                    const rayMilestones = (r, imagePoint) => {
+                        const [ex, ey] = r.exitPoint;
+                        const [vx, vy] = r.exitDir;
+                        let tImg = null;
+                        if (imagePoint) {
+                            const [ix, iy] = imagePoint;
+                            const t = Math.abs(vy) >= Math.abs(vx) ? (iy - ey) / vy : (ix - ex) / vx;
+                            if (t > 0 && t < p.dsep * 2) tImg = t;
+                        }
+                        const tFar = (tImg !== null ? tImg : 0) + p.dsep * 0.65;
+                        return { ex, ey, vx, vy, tImg, tFar };
+                    };
+
+                    // Pass 1 — viewing-cone polygons under everything else.
+                    // For each LED, fill the area swept between the leftmost and rightmost
+                    // escaped rays from aperture exit to the extended endpoint. When the
+                    // rays cross at the focus the polygon becomes a self-intersecting
+                    // bowtie, so use fill-rule="evenodd" to fill both lobes. Overlap
+                    // between LEDs' fills shows the shared viewing zone.
+                    ledData.forEach(({ traces, color, imagePoint }) => {
+                        const escaped = traces
+                            .filter(r => r.escaped && r.exitPoint && r.exitDir)
+                            .sort((a, b) => a.exitPoint[0] - b.exitPoint[0]);
+                        if (escaped.length < 2) return;
+                        const rL = escaped[0], rR = escaped[escaped.length - 1];
+                        const ml = rayMilestones(rL, imagePoint);
+                        const mr = rayMilestones(rR, imagePoint);
+                        const farL = [ml.ex + ml.tFar * ml.vx, ml.ey + ml.tFar * ml.vy];
+                        const farR = [mr.ex + mr.tFar * mr.vx, mr.ey + mr.tFar * mr.vy];
+                        const pts = [rL.exitPoint, farL, farR, rR.exitPoint]
+                            .map(([x, y]) => `${x.toFixed(3)},${y.toFixed(3)}`).join(' ');
+                        root.appendChild(make('polygon', {
+                            points: pts,
+                            fill: color,
+                            'fill-opacity': '0.1',
+                            'fill-rule': 'evenodd',
+                            stroke: 'none',
+                        }));
+                    });
+
+                    // Pass 2 — rays + LED/image markers, drawn over the cone fills.
                     ledData.forEach(({ ledX, objY, traces, imagePoint, color }) => {
                         traces.forEach((result) => {
                             const pts = result.points.slice();
-                            let divergeTail = null; // [imgPt, farPt] drawn at lower opacity
-
                             if (result.escaped && result.exitPoint && result.exitDir) {
-                                const [ex, ey] = result.exitPoint;
-                                const [vx, vy] = result.exitDir;
-                                pts.push([ex, ey]);
-
-                                // Distance to the convergence point along this ray (if any)
-                                let tImg = null;
-                                if (imagePoint) {
-                                    const [ix, iy] = imagePoint;
-                                    const t = Math.abs(vy) >= Math.abs(vx)
-                                        ? (iy - ey) / vy
-                                        : (ix - ex) / vx;
-                                    if (t > 0 && t < p.dsep * 2) tImg = t;
-                                }
-
-                                if (tImg !== null) {
-                                    // Two-segment: converging to focus, then faded diverging tail
-                                    const imgPt = [ex + tImg * vx, ey + tImg * vy];
-                                    pts.push(imgPt);
-                                    const tFar = tImg + p.dsep * 0.65;
-                                    divergeTail = [imgPt, [ex + tFar * vx, ey + tFar * vy]];
-                                } else {
-                                    // No usable focus — fan the ray at full opacity past the aperture
-                                    const tFar = p.dsep * 0.65;
-                                    pts.push([ex + tFar * vx, ey + tFar * vy]);
-                                }
+                                const m = rayMilestones(result, imagePoint);
+                                pts.push([m.ex, m.ey]);
+                                if (m.tImg !== null) pts.push([m.ex + m.tImg * m.vx, m.ey + m.tImg * m.vy]);
+                                pts.push([m.ex + m.tFar * m.vx, m.ey + m.tFar * m.vy]);
                             }
-
-                            if (pts.length >= 2) {
-                                const ptsStr = pts.map(([x, y]) => `${x.toFixed(3)},${y.toFixed(3)}`).join(' ');
-                                root.appendChild(make('polyline', {
-                                    points: ptsStr,
-                                    fill: 'none',
-                                    stroke: color,
-                                    'stroke-width': '0.4',
-                                    'stroke-linecap': 'round',
-                                    'stroke-linejoin': 'round',
-                                    opacity: result.escaped ? '0.85' : '0.22',
-                                }));
-                            }
-
-                            // Diverging tail past focus — faded to distinguish from converging portion
-                            if (divergeTail) {
-                                const tailStr = divergeTail.map(([x, y]) => `${x.toFixed(3)},${y.toFixed(3)}`).join(' ');
-                                root.appendChild(make('polyline', {
-                                    points: tailStr,
-                                    fill: 'none',
-                                    stroke: color,
-                                    'stroke-width': '0.4',
-                                    'stroke-linecap': 'round',
-                                    opacity: '0.32',
-                                }));
-                            }
+                            if (pts.length < 2) return;
+                            const ptsStr = pts.map(([x, y]) => `${x.toFixed(3)},${y.toFixed(3)}`).join(' ');
+                            root.appendChild(make('polyline', {
+                                points: ptsStr,
+                                fill: 'none',
+                                stroke: color,
+                                'stroke-width': '0.4',
+                                'stroke-linecap': 'round',
+                                'stroke-linejoin': 'round',
+                                opacity: result.escaped ? '0.85' : '0.22',
+                            }));
                         });
 
                         // Object marker (LED)
