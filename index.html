@@ -1208,6 +1208,9 @@
                             <span>mirror depth: <span class="sim__stat-value" id="sim-stat-depth">—</span></span>
                             <span>image height: <span class="sim__stat-value" id="sim-stat-imgh">—</span></span>
                             <span>viewing angle: <span class="sim__stat-value" id="sim-stat-angle">—</span></span>
+                            <span>rays traced: <span class="sim__stat-value" id="sim-stat-traced">—</span></span>
+                            <span>image-forming: <span class="sim__stat-value" id="sim-stat-escaped">—</span></span>
+                            <span>total bounces: <span class="sim__stat-value" id="sim-stat-bounces">—</span></span>
                         </div>
                     </div>
 
@@ -1251,7 +1254,7 @@
                             <div class="sim__field">
                                 <label for="sim-rays">rays / LED</label>
                                 <div class="sim__input-wrap">
-                                    <input type="number" id="sim-rays" value="12" step="1" min="3" max="60">
+                                    <input type="number" id="sim-rays" value="2" step="1" min="2" max="60">
                                 </div>
                             </div>
                             <div class="sim__field">
@@ -1745,6 +1748,9 @@
                     document.getElementById('sim-stat-depth').textContent = `${depth.toFixed(1)} mm`;
                     document.getElementById('sim-stat-imgh').textContent = imgH !== null ? `${imgH.toFixed(1)} mm` : '—';
                     document.getElementById('sim-stat-angle').textContent = totalEscaped > 0 ? `${maxHalfAngle.toFixed(0)}°` : '—';
+                    document.getElementById('sim-stat-traced').textContent = totalTraced;
+                    document.getElementById('sim-stat-escaped').textContent = totalEscaped;
+                    document.getElementById('sim-stat-bounces').textContent = totalEscaped * p.nbounces;
                 };
 
                 document.getElementById('sim-run').addEventListener('click', run);
