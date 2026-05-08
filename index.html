@@ -1564,7 +1564,7 @@
                                 <div class="sim__val-summary-row">
                                     <span class="sim__val-label">Optimizer</span>
                                     <span class="sim__val-status" id="sim-opt-status">—</span>
-                                    <span class="sim__val-label" style="margin-left:auto;">build e122185 · ratios+intersect</span>
+                                    <span class="sim__val-label" style="margin-left:auto;">build inverse-design · object→device</span>
                                 </div>
                                 <div class="sim__val-summary-row">
                                     <span id="sim-opt-summary">—</span>
@@ -2398,34 +2398,13 @@
                     return simplex[0];
                 };
 
-                const optimize = () => {
-                    const readout = document.getElementById('sim-optimizer-readout');
-                    const statusEl = document.getElementById('sim-opt-status');
-                    const summaryEl = document.getElementById('sim-opt-summary');
-                    const paramsEl = document.getElementById('sim-opt-params');
-                    readout.hidden = false;
-                    statusEl.textContent = 'searching…';
-                    statusEl.removeAttribute('data-status');
-                    summaryEl.textContent = '';
-                    paramsEl.textContent = '';
-
-                    const cur = readParams();
-                    const dsep = cur.dsep;
-                    const h_obj = cur.h_obj, obj_d = cur.obj_d, nbounces = cur.nbounces;
-                    const nraysOpt = 24;
-
-                    // Baseline = current geometry, scored under the same metric.
-                    const baseline = scoreCandidate(
-                        cur.f1 / dsep, cur.f2 / dsep, cur.a / Math.max(1e-6, cur.D || 2 * cur.halfW),
-                        dsep, h_obj, obj_d, nbounces, nraysOpt
-                    );
-
-                    // Search space.
-                    const R_LO = 0.6, R_HI = 2.4, R_STEPS = 20;
-                    const RA_VALUES = [0.08, 0.10, 0.12, 0.15, 0.18, 0.22];
+                // Inner search: best (r1, r2, ra) at a given d_sep. Returns
+                // null if no feasible geometry exists at this scale. Used by
+                // the outer d_sep scan in optimize().
+                const R_LO = 0.6, R_HI = 2.4, R_STEPS = 15;
+                const RA_VALUES = [0.08, 0.10, 0.12, 0.15, 0.18, 0.22];
+                const searchAtScale = (dsep, h_obj, obj_d, nbounces, nraysOpt) => {
                     const dr = (R_HI - R_LO) / (R_STEPS - 1);
-
-                    // Coarse grid: 20×20 over (r1, r2) at each of 6 r_a values.
                     let best = null;
                     let bestRa = null;
                     for (const ra of RA_VALUES) {
@@ -2438,42 +2417,101 @@
                             }
                         }
                     }
-
-                    if (!best) {
-                        statusEl.textContent = 'no feasible geometry';
-                        statusEl.setAttribute('data-status', 'fail');
-                        summaryEl.textContent = `No (r₁, r₂, r_a) in the search box produces a real image at the aperture for h_obj=${h_obj} mm, Ø_obj=${obj_d} mm at d_sep=${dsep} mm. Try reducing object size or h_obj, or change d_sep.`;
-                        paramsEl.textContent = '';
-                        return;
-                    }
-
-                    // Nelder-Mead refinement at winning r_a, in continuous (r1, r2).
+                    if (!best) return null;
+                    // Nelder-Mead polish at the winning r_a.
                     const objective = (x) => {
                         const r1 = Math.min(R_HI, Math.max(R_LO, x[0]));
                         const r2 = Math.min(R_HI, Math.max(R_LO, x[1]));
                         const c = scoreCandidate(r1, r2, bestRa, dsep, h_obj, obj_d, nbounces, nraysOpt);
-                        if (!c) return 1e6; // infeasible
+                        if (!c) return 1e6;
                         return -c.score;
                     };
-                    const polished = nelderMead2D(objective, [best.r1, best.r2], [dr * 0.5, dr * 0.5], 120, 1e-3);
-                    const polishedC = scoreCandidate(
+                    const polished = nelderMead2D(objective, [best.r1, best.r2], [dr * 0.5, dr * 0.5], 80, 1e-3);
+                    const pc = scoreCandidate(
                         Math.min(R_HI, Math.max(R_LO, polished.x[0])),
                         Math.min(R_HI, Math.max(R_LO, polished.x[1])),
                         bestRa, dsep, h_obj, obj_d, nbounces, nraysOpt
                     );
-                    if (polishedC && polishedC.score > best.score) best = polishedC;
+                    if (pc && pc.score > best.score) best = pc;
+                    return best;
+                };
 
-                    const baseScore = baseline ? baseline.score : null;
-                    const newScore = best.score;
+                // ─────────────────────────────────────────────────────────
+                // Outer search: find the best device size (d_sep) AND shape
+                // (r1, r2, ra) for a given object (h_obj, Ø_obj).
+                //
+                // Physics: ratios determine viewing angle; scale (d_sep)
+                // determines aberration. At fixed ratios, larger d_sep →
+                // smaller spot RMS → more candidates pass the spot cap →
+                // wider achievable angle. The angle saturates once the
+                // spot constraint stops binding, so the natural answer is
+                // the smallest d_sep at which intersect-width plateaus.
+                //
+                // We scan ~7 d_sep values from a physical floor (h_obj/2,
+                // obj_d, 30 mm) up to ~12× the object span, run the inner
+                // ratio search at each, and pick the smallest d_sep whose
+                // intersect-width is within 1° of the global maximum.
+                // ─────────────────────────────────────────────────────────
+                const optimize = () => {
+                    const readout = document.getElementById('sim-optimizer-readout');
+                    const statusEl = document.getElementById('sim-opt-status');
+                    const summaryEl = document.getElementById('sim-opt-summary');
+                    const paramsEl = document.getElementById('sim-opt-params');
+                    readout.hidden = false;
+                    statusEl.textContent = 'searching…';
+                    statusEl.removeAttribute('data-status');
+                    summaryEl.textContent = '';
+                    paramsEl.textContent = '';
 
-                    // Write absolute mm back to the inputs. Round to slider step.
+                    const cur = readParams();
+                    const h_obj = cur.h_obj, obj_d = cur.obj_d, nbounces = cur.nbounces;
+                    const nraysOpt = 24;
+
+                    // d_sep candidates — geometric ladder from physical floor
+                    // to a generous ceiling. Floor enforces h_obj < f1 (since
+                    // f1 ≤ 2.4·dsep) and that the rim accommodates the object
+                    // diameter. Ceiling caps the device at something buildable.
+                    const dsepFloor = Math.max(30, h_obj * 1.1, obj_d * 1.2);
+                    const dsepCeil = Math.max(dsepFloor * 12, 200);
+                    const N_DSEP = 7;
+                    const dsepCandidates = [];
+                    for (let i = 0; i < N_DSEP; i++) {
+                        const t = i / (N_DSEP - 1);
+                        dsepCandidates.push(dsepFloor * Math.pow(dsepCeil / dsepFloor, t));
+                    }
+
+                    // Run inner search at each d_sep. Track scores so we can
+                    // pick the smallest device that achieves near-max angle.
+                    const tier = []; // {dsep, result, score}
+                    for (const dsep of dsepCandidates) {
+                        const result = searchAtScale(dsep, h_obj, obj_d, nbounces, nraysOpt);
+                        if (result) tier.push({ dsep, result, score: result.score });
+                    }
+
+                    if (tier.length === 0) {
+                        statusEl.textContent = 'no feasible geometry';
+                        statusEl.setAttribute('data-status', 'fail');
+                        summaryEl.textContent = `No mirascope geometry between d_sep=${dsepFloor.toFixed(0)} mm and ${dsepCeil.toFixed(0)} mm satisfies all constraints (real image at aperture, spot RMS < 1 mm, ≥50% rays escape) for h_obj=${h_obj} mm, Ø_obj=${obj_d} mm. Try a smaller object.`;
+                        paramsEl.textContent = '';
+                        return;
+                    }
+
+                    // Smallest d_sep within 1° of the best score, OR the best
+                    // outright if no smaller candidate is close. This favors
+                    // compact devices when angle has plateaued.
+                    const maxScore = Math.max(...tier.map(t => t.score));
+                    const ANGLE_TOL = 1.0;
+                    const acceptable = tier.filter(t => maxScore - t.score <= ANGLE_TOL);
+                    acceptable.sort((a, b) => a.dsep - b.dsep);
+                    const best = acceptable[0].result;
+
+                    // Write absolute mm back. Round to integer (slider step).
                     const f1r = Math.round(best.p.f1);
                     const f2r = Math.round(best.p.f2);
                     const dsepr = Math.round(best.p.dsep);
                     const ar = Math.round(best.p.a);
                     const setVal = (id, v) => {
                         const el = document.getElementById(id);
-                        // Auto-extend the slider range if optimum exceeds it.
                         const range = document.getElementById(id + '-range');
                         if (range && v > +range.max) range.max = String(v);
                         if (range && v < +range.min) range.min = String(v);
@@ -2487,8 +2525,8 @@
                     setVal('sim-dsep', dsepr);
                     setVal('sim-aperture', ar);
 
-                    // Bump rays/LED to ≥24 for the visible run so the displayed
-                    // viewing angle reflects what the optimizer actually measured.
+                    // Bump rays/LED to ≥24 so the displayed run matches the
+                    // optimizer's measurement.
                     const raysEl = document.getElementById('sim-rays');
                     const raysRange = document.getElementById('sim-rays-range');
                     if (+raysEl.value < 24) {
@@ -2502,12 +2540,12 @@
 
                     statusEl.textContent = 'converged';
                     statusEl.setAttribute('data-status', 'pass');
-                    const baseStr = baseScore !== null ? `${baseScore.toFixed(1)}°` : 'n/a';
-                    const delta = baseScore !== null ? ` (Δ ${(newScore - baseScore >= 0 ? '+' : '') + (newScore - baseScore).toFixed(1)}°)` : '';
                     const spotStr = best.worstSpot < 1
                         ? `${(best.worstSpot * 1000).toFixed(0)} µm`
                         : `${best.worstSpot.toFixed(2)} mm`;
-                    summaryEl.textContent = `Intersect viewing angle: ${baseStr} → ${newScore.toFixed(1)}°${delta} (window [${best.intersectMin.toFixed(1)}°, ${best.intersectMax.toFixed(1)}°]). Worst spot RMS ${spotStr}.`;
+                    // Tier curve so the user can see how angle grew with scale.
+                    const curve = tier.map(t => `${Math.round(t.dsep)}→${t.score.toFixed(0)}°`).join(' · ');
+                    summaryEl.textContent = `Intersect viewing angle: ${best.score.toFixed(1)}° (window [${best.intersectMin.toFixed(1)}°, ${best.intersectMax.toFixed(1)}°]). Worst spot RMS ${spotStr}. Scale curve (d_sep→angle): ${curve}.`;
                     paramsEl.textContent = `Ratios — r₁=${best.r1.toFixed(3)} · r₂=${best.r2.toFixed(3)} · r_a=${best.ra.toFixed(3)}    |    Absolute — f₁=${f1r} mm · f₂=${f2r} mm · d_sep=${dsepr} mm · a=${ar} mm · D=${best.p.D.toFixed(1)} mm`;
                 };
 
