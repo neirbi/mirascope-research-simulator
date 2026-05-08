@@ -818,20 +818,17 @@
            they read as editable against the page bg without borders.
            =========================================== */
         .sim {
-            display: grid;
-            grid-template-columns: 18rem 1fr;
+            display: flex;
+            flex-direction: column;
             gap: var(--space-lg);
-            align-items: start;
-        }
-
-        @media (max-width: 47.99em) {
-            .sim { grid-template-columns: 1fr; }
         }
 
         .sim__controls {
             display: flex;
-            flex-direction: column;
-            gap: var(--space-md);
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: var(--space-lg);
+            align-items: flex-start;
         }
 
         .sim__group {
@@ -1185,6 +1182,22 @@
 
                 <div class="sim">
 
+                    <div class="sim__canvas-wrap">
+                        <svg class="sim__svg" id="sim-svg" viewBox="-150 -30 300 180" preserveAspectRatio="xMidYMid meet" aria-label="Mirascope ray-tracing visualization"></svg>
+
+                        <div class="sim__legend" aria-hidden="true">
+                            <span class="sim__legend-item"><span class="sim__legend-dot" style="background:#E63946"></span>Red LED</span>
+                            <span class="sim__legend-item"><span class="sim__legend-dot" style="background:#2FAE6F"></span>Green LED</span>
+                            <span class="sim__legend-item"><span class="sim__legend-dot" style="background:#0071E3"></span>Blue LED</span>
+                        </div>
+
+                        <div class="sim__stats" id="sim-stats">
+                            <span>rays traced: <span class="sim__stat-value" id="sim-stat-traced">—</span></span>
+                            <span>image-forming: <span class="sim__stat-value" id="sim-stat-escaped">—</span></span>
+                            <span>total bounces: <span class="sim__stat-value" id="sim-stat-bounces">—</span></span>
+                        </div>
+                    </div>
+
                     <div class="sim__controls" id="sim-controls">
                         <div class="sim__group">
                             <p class="sim__group-label">Geometry</p>
@@ -1223,22 +1236,6 @@
                         </div>
 
                         <button type="button" class="sim__run" id="sim-run">Run Simulation</button>
-                    </div>
-
-                    <div class="sim__canvas-wrap">
-                        <svg class="sim__svg" id="sim-svg" viewBox="-150 -30 300 180" preserveAspectRatio="xMidYMid meet" aria-label="Mirascope ray-tracing visualization"></svg>
-
-                        <div class="sim__legend" aria-hidden="true">
-                            <span class="sim__legend-item"><span class="sim__legend-dot" style="background:#E63946"></span>Red LED</span>
-                            <span class="sim__legend-item"><span class="sim__legend-dot" style="background:#2FAE6F"></span>Green LED</span>
-                            <span class="sim__legend-item"><span class="sim__legend-dot" style="background:#0071E3"></span>Blue LED</span>
-                        </div>
-
-                        <div class="sim__stats" id="sim-stats">
-                            <span>rays traced: <span class="sim__stat-value" id="sim-stat-traced">—</span></span>
-                            <span>image-forming: <span class="sim__stat-value" id="sim-stat-escaped">—</span></span>
-                            <span>total bounces: <span class="sim__stat-value" id="sim-stat-bounces">—</span></span>
-                        </div>
                     </div>
 
                 </div>
