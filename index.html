@@ -1564,7 +1564,7 @@
                                 <div class="sim__val-summary-row">
                                     <span class="sim__val-label">Optimizer</span>
                                     <span class="sim__val-status" id="sim-opt-status">—</span>
-                                    <span class="sim__val-label" style="margin-left:auto;">build inverse-design · object→device</span>
+                                    <span class="sim__val-label" style="margin-left:auto;">build compact-knee · 90%·spot-scaled</span>
                                 </div>
                                 <div class="sim__val-summary-row">
                                     <span id="sim-opt-summary">—</span>
@@ -2329,11 +2329,18 @@
                 // Score a candidate geometry. Returns null on hard failure;
                 // otherwise returns { score, intersectWidth, ... } where
                 // score is intersect viewing angle width in degrees.
-                const SPOT_LIMIT_MM = 1.0;
+                // Spot-RMS cap scales with object diameter — "sharp" in
+                // optics is RMS small relative to image size, not an absolute
+                // threshold. 5% of object Ø with a 1 mm floor matches the
+                // standard rule-of-thumb for visually sharp imaging and stops
+                // the optimizer from demanding meter-scale devices for
+                // centimeter-scale objects.
                 const ESCAPE_FRAC_MIN = 0.5;
+                const spotLimitFor = (obj_d) => Math.max(1.0, obj_d * 0.05);
                 const scoreCandidate = (r1, r2, ra, dsep, h_obj, obj_d, nbounces, nrays) => {
                     const p = paramsFromRatios(r1, r2, ra, dsep, h_obj, obj_d, nbounces);
                     if (!p) return null;
+                    const spotCap = spotLimitFor(obj_d);
                     const ledOffsets = [-obj_d / 2, 0, +obj_d / 2];
                     let intersectMin = -Infinity, intersectMax = +Infinity;
                     let worstSpot = 0;
@@ -2344,7 +2351,7 @@
                         const led = evalLED(ledX, p, nrays);
                         if (!led) return null;
                         if (led.escaped / led.attempted < ESCAPE_FRAC_MIN) return null;
-                        if (led.spotRMS > SPOT_LIMIT_MM) return null;
+                        if (led.spotRMS > spotCap) return null;
                         intersectMin = Math.max(intersectMin, led.minAngle);
                         intersectMax = Math.min(intersectMax, led.maxAngle);
                         if (led.spotRMS > worstSpot) worstSpot = led.spotRMS;
@@ -2496,12 +2503,17 @@
                         return;
                     }
 
-                    // Smallest d_sep within 1° of the best score, OR the best
-                    // outright if no smaller candidate is close. This favors
-                    // compact devices when angle has plateaued.
+                    // Smallest d_sep that achieves ≥90% of the best score.
+                    // Absolute angle tolerance (e.g. 1°) was way too tight —
+                    // it picked devices 8× larger than needed for marginal
+                    // angle gains. A 90% threshold gives the natural knee:
+                    // compact device that captures most of the achievable
+                    // viewing window, since angle vs scale is a saturating
+                    // curve.
                     const maxScore = Math.max(...tier.map(t => t.score));
-                    const ANGLE_TOL = 1.0;
-                    const acceptable = tier.filter(t => maxScore - t.score <= ANGLE_TOL);
+                    const ANGLE_FRAC = 0.90;
+                    const threshold = maxScore * ANGLE_FRAC;
+                    const acceptable = tier.filter(t => t.score >= threshold);
                     acceptable.sort((a, b) => a.dsep - b.dsep);
                     const best = acceptable[0].result;
 
