@@ -934,13 +934,15 @@
         .sim__btn-secondary:hover { transform: translateY(-1px); }
         .sim__btn-secondary:active { transform: translateY(0); opacity: 0.9; }
 
-        /* Reversibility validator output — pass/fail indicator with the
-           residual numbers. Sits below the main stats and inherits its
-           horizontal-flow layout. Hidden until the validator has run. */
+        /* Reversibility validator output — three sections stacked vertically:
+             1. Status badge + one-line summary explaining the verdict
+             2. Numerical stats grid (rays / max / RMS / threshold)
+             3. Failure breakdown (only shown when something failed)
+           Sits below the main stats. Hidden until the validator has run. */
         .sim__validator {
             display: flex;
-            flex-wrap: wrap;
-            gap: var(--space-md) var(--space-lg);
+            flex-direction: column;
+            gap: var(--space-xs);
             font-family: var(--font-mono);
             font-size: var(--text-sm);
             color: var(--color-text-secondary);
@@ -948,12 +950,37 @@
             margin-top: var(--space-sm);
             border-top: 1px solid var(--color-border-subtle);
         }
+        .sim__val-summary-row {
+            display: flex;
+            align-items: baseline;
+            gap: var(--space-md);
+            flex-wrap: wrap;
+        }
         .sim__val-status {
             font-weight: var(--weight-bold);
             color: var(--color-text-primary);
+            white-space: nowrap;
         }
         .sim__val-status[data-status="pass"] { color: var(--color-accent); }
         .sim__val-status[data-status="fail"] { color: #E63946; }
+        .sim__val-summary {
+            color: var(--color-text-secondary);
+        }
+        .sim__val-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-sm) var(--space-md);
+            color: var(--color-text-secondary);
+        }
+        .sim__val-breakdown {
+            color: var(--color-text-tertiary);
+            line-height: 1.6;
+        }
+        .sim__val-breakdown ul {
+            list-style: disc;
+            padding-inline-start: 1.25rem;
+            margin: 0;
+        }
 
         .sim__canvas-wrap {
             background: var(--color-bg-surface);
@@ -1265,10 +1292,17 @@
                         </div>
 
                         <div class="sim__validator" id="sim-validator" hidden>
-                            <span class="sim__val-status" id="sim-val-status">—</span>
-                            <span>rays reversed: <span class="sim__stat-value" id="sim-val-rays">—</span></span>
-                            <span>max residual: <span class="sim__stat-value" id="sim-val-max">—</span></span>
-                            <span>RMS residual: <span class="sim__stat-value" id="sim-val-mean">—</span></span>
+                            <div class="sim__val-summary-row">
+                                <span class="sim__val-status" id="sim-val-status">—</span>
+                                <span class="sim__val-summary" id="sim-val-summary"></span>
+                            </div>
+                            <div class="sim__val-stats">
+                                <span>rays reversed: <span class="sim__stat-value" id="sim-val-rays">—</span></span>
+                                <span>max residual: <span class="sim__stat-value" id="sim-val-max">—</span></span>
+                                <span>RMS residual: <span class="sim__stat-value" id="sim-val-mean">—</span></span>
+                                <span>pass threshold: <span class="sim__stat-value" id="sim-val-threshold">—</span></span>
+                            </div>
+                            <div class="sim__val-breakdown" id="sim-val-breakdown" hidden></div>
                         </div>
                     </div>
 
@@ -1618,6 +1652,13 @@
                 // and return the final position + unit direction. Uses the aperture-
                 // aware M2 intersection so the hole is correctly treated as empty
                 // space, not a phantom mirror surface.
+                //
+                // Return contract:
+                //   success → { x, y, vx, vy }
+                //   failure → { error: 'no_intersection' | 'outside_rim',
+                //               bounce: i, mirror }
+                // The structured failure is consumed by the validator to break
+                // results down by failure mode rather than just counting nulls.
                 const traceReflections = (x0, y0, vx0, vy0, p, n) => {
                     let x = x0, y = y0, vx = vx0, vy = vy0;
                     for (let i = 0; i < n; i++) {
@@ -1626,10 +1667,10 @@
                         let t = null, mirror = null;
                         if (t1 !== null && (t2 === null || t1 < t2)) { t = t1; mirror = 1; }
                         else if (t2 !== null) { t = t2; mirror = 2; }
-                        else return null;
+                        else return { error: 'no_intersection', bounce: i, mirror: null };
                         const hitX = x + t * vx;
                         const hitY = y + t * vy;
-                        if (Math.abs(hitX) > p.halfW) return null;
+                        if (Math.abs(hitX) > p.halfW) return { error: 'outside_rim', bounce: i, mirror };
                         const [nx, ny] = surfaceNormal(hitX, mirror === 1 ? p.f1 : p.f2, mirror === 1 ? +1 : -1);
                         [vx, vy] = reflect(vx, vy, nx, ny);
                         const dlen = Math.sqrt(vx * vx + vy * vy);
@@ -1917,6 +1958,12 @@
                 // traced ray; for a physically correct simulator with double precision
                 // it should be near machine epsilon (~1e-12 mm). Anything above the
                 // 1 µm threshold below indicates a real bug in the trace, not noise.
+                //
+                // Output is broken down by failure mode so a failure tells you where
+                // to look (which bounce, which kind of failure, how many rays).
+                const PASS_THRESHOLD = 1e-3; // 1 µm
+                const LED_LABEL = ['red', 'green', 'blue'];
+
                 const validate = () => {
                     const r = run();
                     if (!r) return;
@@ -1924,15 +1971,23 @@
 
                     let nForward = 0, nReversed = 0;
                     let sumSq = 0, maxRes = 0;
+                    // Failure modes: bucket bounce indices separately so the breakdown
+                    // can tell the user "X rays failed at bounce 0, Y at bounce 1".
+                    const failures = { no_intersection: {}, outside_rim: {}, over_threshold: 0 };
+                    const overRays = []; // {led, residual} for the worst residual offenders
 
-                    ledData.forEach(({ ledX, objY, traces }) => {
+                    ledData.forEach(({ ledX, objY, traces }, ledIdx) => {
                         traces.forEach((result) => {
                             if (!result.escaped || !result.exitPoint || !result.exitDir) return;
                             nForward++;
                             const [ex, ey] = result.exitPoint;
                             const [vx, vy] = result.exitDir;
                             const rev = traceReflections(ex, ey, -vx, -vy, p, p.nbounces);
-                            if (!rev) return;
+                            if (rev.error) {
+                                const bucket = failures[rev.error];
+                                bucket[rev.bounce] = (bucket[rev.bounce] || 0) + 1;
+                                return;
+                            }
                             // Perpendicular distance from source to the reversed ray's
                             // final segment. (rev.vx, rev.vy) is unit, so the 2-D
                             // cross product magnitude IS the perpendicular distance.
@@ -1942,21 +1997,66 @@
                             nReversed++;
                             sumSq += residual * residual;
                             if (residual > maxRes) maxRes = residual;
+                            if (residual > PASS_THRESHOLD) {
+                                failures.over_threshold++;
+                                overRays.push({ led: LED_LABEL[ledIdx], residual });
+                            }
                         });
                     });
 
                     const rms = nReversed > 0 ? Math.sqrt(sumSq / nReversed) : 0;
-                    const PASS_THRESHOLD = 1e-3; // 1 µm — well above numerical noise, well below any real bug
-                    const passed = nReversed > 0 && nReversed === nForward && maxRes < PASS_THRESHOLD;
+                    const passed = nForward > 0 && nReversed === nForward && maxRes < PASS_THRESHOLD;
 
                     const validator = document.getElementById('sim-validator');
                     validator.hidden = false;
                     const statusEl = document.getElementById('sim-val-status');
                     statusEl.textContent = passed ? '✓ PASS' : '✗ FAIL';
                     statusEl.dataset.status = passed ? 'pass' : 'fail';
+
+                    // One-line summary that names the *reason* for the verdict
+                    const summaryEl = document.getElementById('sim-val-summary');
+                    if (nForward === 0) {
+                        summaryEl.textContent = 'no forward-escaping rays were produced — adjust geometry or ray count';
+                    } else if (passed) {
+                        summaryEl.textContent = `all ${nForward} escaped rays retraced to source within ${PASS_THRESHOLD.toExponential(0)} mm — time-reversibility upheld`;
+                    } else {
+                        const bits = [];
+                        const lostNI = Object.values(failures.no_intersection).reduce((a, b) => a + b, 0);
+                        const lostRim = Object.values(failures.outside_rim).reduce((a, b) => a + b, 0);
+                        if (lostNI) bits.push(`${lostNI} lost (no intersection)`);
+                        if (lostRim) bits.push(`${lostRim} lost (outside rim)`);
+                        if (failures.over_threshold) bits.push(`${failures.over_threshold} exceeded tolerance`);
+                        summaryEl.textContent = `${nForward - nReversed + failures.over_threshold} of ${nForward} rays failed — ${bits.join(', ')}`;
+                    }
+
                     document.getElementById('sim-val-rays').textContent = `${nReversed} / ${nForward}`;
                     document.getElementById('sim-val-max').textContent = nReversed > 0 ? `${maxRes.toExponential(2)} mm` : '—';
                     document.getElementById('sim-val-mean').textContent = nReversed > 0 ? `${rms.toExponential(2)} mm` : '—';
+                    document.getElementById('sim-val-threshold').textContent = `${PASS_THRESHOLD.toExponential(2)} mm`;
+
+                    // Per-failure-mode breakdown — only when there *is* something to break down
+                    const breakdown = document.getElementById('sim-val-breakdown');
+                    const lines = [];
+                    const bouncesList = (bucket) => Object.entries(bucket)
+                        .map(([b, n]) => `${n} at bounce ${b}`).join(', ');
+                    if (Object.keys(failures.no_intersection).length) {
+                        lines.push(`reverse trace found no mirror hit — ${bouncesList(failures.no_intersection)}. The reversed ray missed both M1 and M2 entirely; look at intersection logic or aperture-mask handling at that bounce.`);
+                    }
+                    if (Object.keys(failures.outside_rim).length) {
+                        lines.push(`reverse trace landed outside the rim — ${bouncesList(failures.outside_rim)}. The reverse path is hitting a mirror beyond |x| = D/2; geometry or normal direction is suspect at that bounce.`);
+                    }
+                    if (failures.over_threshold) {
+                        const sample = overRays.slice().sort((a, b) => b.residual - a.residual).slice(0, 3)
+                            .map(r => `${r.led} ${r.residual.toExponential(1)} mm`).join(', ');
+                        lines.push(`${failures.over_threshold} ray(s) reversed but exceeded the ${PASS_THRESHOLD.toExponential(0)} mm tolerance (worst: ${sample}). Numerics alone shouldn't put us above threshold — likely a sign error, normal direction, or wrong-root selection.`);
+                    }
+                    if (lines.length) {
+                        breakdown.hidden = false;
+                        breakdown.innerHTML = '<ul>' + lines.map(l => `<li>${l}</li>`).join('') + '</ul>';
+                    } else {
+                        breakdown.hidden = true;
+                        breakdown.innerHTML = '';
+                    }
                 };
 
                 document.getElementById('sim-run').addEventListener('click', run);
