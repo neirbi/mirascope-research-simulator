@@ -1373,12 +1373,14 @@
                 const parabolaY = (x, f, s, vy) => vy + s * (x * x) / (4 * f);
 
                 // Ray–parabola intersection (Card 3).
-                // Quadratic in t: A·t² + B·t + C = 0
+                // Substitute x(t) = ox + t·dx, y(t) = oy + t·dy into y − vy = s·x²/(4f):
+                //   s·dx²·t² + (2s·ox·dx − 4f·dy)·t + (s·ox² − 4f·(oy − vy)) = 0
+                // Coefficients below are that equation divided by 4f.
                 const intersectParabola = (ox, oy, dx, dy, f, s, vy, tMin) => {
                     const inv4f = 1 / (4 * f);
-                    const A = dx * dx * inv4f;
-                    const B = 2 * ox * dx * inv4f - s * dy;
-                    const C = ox * ox * inv4f - s * (oy - vy);
+                    const A = s * dx * dx * inv4f;
+                    const B = 2 * s * ox * dx * inv4f - dy;
+                    const C = s * ox * ox * inv4f - (oy - vy);
 
                     if (Math.abs(A) < 1e-12) {
                         if (Math.abs(B) < 1e-12) return null;
@@ -1588,17 +1590,27 @@
                         }
 
                         // Real 2-D convergence point — where all escaped rays meet.
-                        // In the canonical mirascope (d_sep = f, h_obj = 0) the image
-                        // forms exactly on the aperture plane (y = vy2), not above it —
-                        // so a strict `> vy2` test rejects valid images. Match the
-                        // reference's 5 mm slack below the aperture, and bound far-away
-                        // singular results from near-parallel bundles at 3·d_sep above.
+                        //
+                        // Physical-validity test: a real image must lie at or above
+                        // M2's parabolic surface y = vy2 − x²/(4·f₂) at the convergence
+                        // x. Below that boundary is inside the M2 mirror — not a place
+                        // light can converge in real space (would be a virtual focus).
+                        // In the canonical mirascope, off-axis images form exactly on
+                        // M2's curve (the image of an object on M1 is its mirrored
+                        // point on M2), so the boundary is a parabola, not a horizontal
+                        // line. The 0.5 mm tolerance absorbs least-squares noise only.
+                        //
+                        // Upper bound is a viewport guard: singular near-parallel ray
+                        // bundles produce a junk far point that would blow up the
+                        // viewBox. 3·d_sep covers every realistic image height.
                         const raw = findConvergence(escapedRays);
-                        const imagePoint = (raw
-                            && Number.isFinite(raw[0]) && Number.isFinite(raw[1])
-                            && raw[1] >= p.vy2 - 5
-                            && raw[1] < p.vy2 + p.dsep * 3)
-                            ? raw : null;
+                        let imagePoint = null;
+                        if (raw && Number.isFinite(raw[0]) && Number.isFinite(raw[1])) {
+                            const m2SurfY = p.vy2 - (raw[0] * raw[0]) / (4 * p.f2);
+                            if (raw[1] >= m2SurfY - 0.5 && raw[1] < p.vy2 + p.dsep * 3) {
+                                imagePoint = raw;
+                            }
+                        }
                         return { ledX, objY, traces, imagePoint, color: LED_COLORS[i] };
                     });
 
