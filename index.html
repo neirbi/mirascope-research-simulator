@@ -1589,17 +1589,40 @@
                     return { points, escaped, exitPoint, exitDir };
                 };
 
+                // Aperture-aware M2 intersection. The aperture is a circular hole in
+                // M2, so any intersection of the ray line with M2's parabola at
+                // |x| < a/2 is mathematical-only — physically the ray passes straight
+                // through that region. If the first root falls in the hole, try the
+                // second; if both do, the ray misses M2 entirely.
+                //
+                // This matters most for reverse traces: a ray starting at the exit
+                // point (ex, vy2) is above M2's curve (which sits at vy2 − x²/(4·f₂)
+                // for x ≠ 0), so the very next M2 root sits at a small positive t
+                // inside the aperture — the EPS guard only catches it when x = 0.
+                // Without this guard, off-axis reverse rays bounce off a surface
+                // that isn't there.
+                const intersectM2Aperture = (ox, oy, dx, dy, p, tMin) => {
+                    let t = intersectParabola(ox, oy, dx, dy, p.f2, -1, p.vy2, tMin);
+                    if (t === null) return null;
+                    const hitX = ox + t * dx;
+                    if (Math.abs(hitX) >= p.a / 2) return t;
+                    // First root is in the hole — look beyond it for the next root.
+                    t = intersectParabola(ox, oy, dx, dy, p.f2, -1, p.vy2, t + EPS);
+                    if (t === null) return null;
+                    const hitX2 = ox + t * dx;
+                    return Math.abs(hitX2) >= p.a / 2 ? t : null;
+                };
+
                 // Reverse-trace helper: from (x0, y0) heading (vx0, vy0), perform
                 // exactly n reflections (auto-selecting the closest mirror each time)
-                // and return the final position + unit direction. No aperture-escape
-                // check — the validator drives rays *backward* through the system,
-                // where the terminus is the original source point, not an aperture.
-                // Returns null if the bundle leaves the rim or finds no intersection.
+                // and return the final position + unit direction. Uses the aperture-
+                // aware M2 intersection so the hole is correctly treated as empty
+                // space, not a phantom mirror surface.
                 const traceReflections = (x0, y0, vx0, vy0, p, n) => {
                     let x = x0, y = y0, vx = vx0, vy = vy0;
                     for (let i = 0; i < n; i++) {
                         const t1 = intersectParabola(x, y, vx, vy, p.f1, +1, p.vy1, EPS);
-                        const t2 = intersectParabola(x, y, vx, vy, p.f2, -1, p.vy2, EPS);
+                        const t2 = intersectM2Aperture(x, y, vx, vy, p, EPS);
                         let t = null, mirror = null;
                         if (t1 !== null && (t2 === null || t1 < t2)) { t = t1; mirror = 1; }
                         else if (t2 !== null) { t = t2; mirror = 2; }
