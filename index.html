@@ -934,15 +934,16 @@
         .sim__btn-secondary:hover { transform: translateY(-1px); }
         .sim__btn-secondary:active { transform: translateY(0); opacity: 0.9; }
 
-        /* Reversibility validator output — three sections stacked vertically:
-             1. Status badge + one-line summary explaining the verdict
-             2. Numerical stats grid (rays / max / RMS / threshold)
-             3. Failure breakdown (only shown when something failed)
-           Sits below the main stats. Hidden until the validator has run. */
+        /* Validator output — one panel containing one or more test sections.
+           Each test (Reversibility, Formula KAT) gets its own .sim__val-test
+           with a label, status badge, summary line, stats grid, and optional
+           breakdown. Sections are separated by a dashed divider so the panel
+           reads as a multi-test physics report. Hidden until the validator
+           has run. */
         .sim__validator {
             display: flex;
             flex-direction: column;
-            gap: var(--space-xs);
+            gap: var(--space-sm);
             font-family: var(--font-mono);
             font-size: var(--text-sm);
             color: var(--color-text-secondary);
@@ -950,11 +951,27 @@
             margin-top: var(--space-sm);
             border-top: 1px solid var(--color-border-subtle);
         }
+        .sim__val-test {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xs);
+        }
+        .sim__val-test + .sim__val-test {
+            padding-top: var(--space-sm);
+            border-top: 1px dashed var(--color-border-subtle);
+        }
         .sim__val-summary-row {
             display: flex;
             align-items: baseline;
             gap: var(--space-md);
             flex-wrap: wrap;
+        }
+        .sim__val-label {
+            font-weight: var(--weight-bold);
+            color: var(--color-text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.75rem;
         }
         .sim__val-status {
             font-weight: var(--weight-bold);
@@ -963,6 +980,8 @@
         }
         .sim__val-status[data-status="pass"] { color: var(--color-accent); }
         .sim__val-status[data-status="fail"] { color: #E63946; }
+        .sim__val-status[data-status="skip"],
+        .sim__val-status[data-status="na"] { color: var(--color-text-tertiary); }
         .sim__val-summary {
             color: var(--color-text-secondary);
         }
@@ -1292,17 +1311,32 @@
                         </div>
 
                         <div class="sim__validator" id="sim-validator" hidden>
-                            <div class="sim__val-summary-row">
-                                <span class="sim__val-status" id="sim-val-status">—</span>
-                                <span class="sim__val-summary" id="sim-val-summary"></span>
+                            <div class="sim__val-test">
+                                <div class="sim__val-summary-row">
+                                    <span class="sim__val-label">Reversibility</span>
+                                    <span class="sim__val-status" id="sim-val-status">—</span>
+                                    <span class="sim__val-summary" id="sim-val-summary"></span>
+                                </div>
+                                <div class="sim__val-stats">
+                                    <span>rays reversed: <span class="sim__stat-value" id="sim-val-rays">—</span></span>
+                                    <span>max residual: <span class="sim__stat-value" id="sim-val-max">—</span></span>
+                                    <span>RMS residual: <span class="sim__stat-value" id="sim-val-mean">—</span></span>
+                                    <span>pass threshold: <span class="sim__stat-value" id="sim-val-threshold">—</span></span>
+                                </div>
+                                <div class="sim__val-breakdown" id="sim-val-breakdown" hidden></div>
                             </div>
-                            <div class="sim__val-stats">
-                                <span>rays reversed: <span class="sim__stat-value" id="sim-val-rays">—</span></span>
-                                <span>max residual: <span class="sim__stat-value" id="sim-val-max">—</span></span>
-                                <span>RMS residual: <span class="sim__stat-value" id="sim-val-mean">—</span></span>
-                                <span>pass threshold: <span class="sim__stat-value" id="sim-val-threshold">—</span></span>
+                            <div class="sim__val-test">
+                                <div class="sim__val-summary-row">
+                                    <span class="sim__val-label">Formula KAT</span>
+                                    <span class="sim__val-status" id="sim-val-kat-status">—</span>
+                                    <span class="sim__val-summary" id="sim-val-kat-summary"></span>
+                                </div>
+                                <div class="sim__val-stats">
+                                    <span>image height — formula <span class="sim__stat-value" id="sim-val-kat-h-f">—</span> · measured <span class="sim__stat-value" id="sim-val-kat-h-m">—</span> · Δ <span class="sim__stat-value" id="sim-val-kat-h-e">—</span></span>
+                                    <span>magnification — formula <span class="sim__stat-value" id="sim-val-kat-m-f">—</span> · measured <span class="sim__stat-value" id="sim-val-kat-m-m">—</span> · Δ <span class="sim__stat-value" id="sim-val-kat-m-e">—</span></span>
+                                    <span>tolerance: <span class="sim__stat-value" id="sim-val-kat-tol">—</span></span>
+                                </div>
                             </div>
-                            <div class="sim__val-breakdown" id="sim-val-breakdown" hidden></div>
                         </div>
                     </div>
 
@@ -1366,7 +1400,7 @@
 
                         <div class="sim__btn-row">
                             <button type="button" class="sim__run" id="sim-run">Run Simulation</button>
-                            <button type="button" class="sim__btn-secondary" id="sim-validate">Validate (Reversibility)</button>
+                            <button type="button" class="sim__btn-secondary" id="sim-validate">Validate Physics</button>
                         </div>
                     </div>
 
@@ -2058,6 +2092,88 @@
                         breakdown.hidden = true;
                         breakdown.innerHTML = '';
                     }
+
+                    // ── Formula KAT ─────────────────────────────────────────────
+                    // Known-answer test for the canonical mirascope (f₁ = f₂ = d_sep).
+                    // Reversibility shows the simulator is internally consistent;
+                    // the KAT shows it agrees with the analytical answer for the
+                    // configuration that has one. Together they catch both classes
+                    // of bug — internal contradictions and offset-by-something
+                    // wrong-but-consistent errors.
+                    //
+                    // Paraxial canonical formula:
+                    //   h_obj = 0  →  image at the aperture plane, m = 1
+                    //   h_obj > 0  →  h_img = f·h_obj / (f − h_obj),  m = f / (f − h_obj)
+                    //   h_obj ≥ f  →  no real image (object at/beyond focus)
+                    //
+                    // Tolerance: 5 % relative or 0.5 mm (height) / 0.02 (mag)
+                    // absolute, whichever is larger. The relative bound dominates
+                    // away from zero; the absolute one keeps the test sane at
+                    // h_obj = 0 where the formula value is exactly 0.
+                    const isCanonical = Math.abs(p.dsep - p.f1) < 0.5 && Math.abs(p.f1 - p.f2) < 0.5;
+                    const objBeyondFocus = p.h_obj >= p.f1;
+
+                    const greenImg = ledData[1].imagePoint;
+                    const redImg = ledData[0].imagePoint;
+                    const blueImg = ledData[2].imagePoint;
+                    const measured_h = greenImg ? greenImg[1] - p.vy2 : null;
+                    const measured_imgD = (redImg && blueImg) ? Math.abs(redImg[0] - blueImg[0]) : null;
+                    const measured_m = (measured_imgD !== null && p.obj_d > 0) ? measured_imgD / p.obj_d : null;
+
+                    let katStatus = 'na', katBadge = '— N/A', katSummary = '';
+                    let formula_h = null, formula_m = null;
+                    let h_diff = null, m_diff = null;
+                    let tolText = '—';
+
+                    if (objBeyondFocus) {
+                        katStatus = 'na'; katBadge = '— N/A';
+                        katSummary = `object at or beyond focal length (h_obj = ${p.h_obj} mm ≥ f₁ = ${p.f1} mm) — no real image, formula doesn't apply`;
+                    } else if (!isCanonical) {
+                        katStatus = 'skip'; katBadge = '⊘ SKIP';
+                        katSummary = `formula only valid for canonical mirascope (f₁ = f₂ = d_sep). Currently f₁=${p.f1}, f₂=${p.f2}, d_sep=${p.dsep} — cannot validate against analytical answer`;
+                    } else if (measured_h === null || measured_m === null) {
+                        katStatus = 'na'; katBadge = '— N/A';
+                        katSummary = 'simulator did not produce both green and red+blue convergence points — nothing to compare against';
+                    } else {
+                        const f = p.f1;
+                        if (p.h_obj === 0) { formula_h = 0; formula_m = 1; }
+                        else { formula_h = f * p.h_obj / (f - p.h_obj); formula_m = f / (f - p.h_obj); }
+
+                        const ABS_TOL_H = 0.5, ABS_TOL_M = 0.02, REL_TOL = 0.05;
+                        const h_thr = Math.max(ABS_TOL_H, REL_TOL * Math.abs(formula_h));
+                        const m_thr = Math.max(ABS_TOL_M, REL_TOL * Math.abs(formula_m));
+                        h_diff = Math.abs(measured_h - formula_h);
+                        m_diff = Math.abs(measured_m - formula_m);
+                        const h_pass = h_diff < h_thr;
+                        const m_pass = m_diff < m_thr;
+                        const passed = h_pass && m_pass;
+
+                        tolText = `5% rel · ${ABS_TOL_H} mm / ${ABS_TOL_M}× abs floor`;
+                        if (passed) {
+                            katStatus = 'pass'; katBadge = '✓ PASS';
+                            katSummary = `canonical mirascope at h_obj = ${p.h_obj} mm — ray-traced image matches paraxial prediction within ${(REL_TOL * 100).toFixed(0)}% (h: Δ${h_diff.toExponential(1)} mm, m: Δ${m_diff.toExponential(1)})`;
+                        } else {
+                            katStatus = 'fail'; katBadge = '✗ FAIL';
+                            const fails = [];
+                            if (!h_pass) fails.push(`image height off by ${h_diff.toFixed(3)} mm (threshold ${h_thr.toFixed(3)} mm)`);
+                            if (!m_pass) fails.push(`magnification off by ${m_diff.toFixed(4)} (threshold ${m_thr.toFixed(4)})`);
+                            katSummary = `canonical mirascope at h_obj = ${p.h_obj} mm — ${fails.join('; ')}. Either the simulator's geometry has a real error, or aberration at this h_obj is larger than the paraxial formula's domain of validity.`;
+                        }
+                    }
+
+                    const fmtMm = (v) => v !== null ? `${v.toFixed(3)} mm` : '—';
+                    const fmtMag = (v) => v !== null ? `${v.toFixed(4)}×` : '—';
+                    const katStatusEl = document.getElementById('sim-val-kat-status');
+                    katStatusEl.textContent = katBadge;
+                    katStatusEl.dataset.status = katStatus;
+                    document.getElementById('sim-val-kat-summary').textContent = katSummary;
+                    document.getElementById('sim-val-kat-h-f').textContent = fmtMm(formula_h);
+                    document.getElementById('sim-val-kat-h-m').textContent = fmtMm(measured_h);
+                    document.getElementById('sim-val-kat-h-e').textContent = h_diff !== null ? `${h_diff.toExponential(2)} mm` : '—';
+                    document.getElementById('sim-val-kat-m-f').textContent = fmtMag(formula_m);
+                    document.getElementById('sim-val-kat-m-m').textContent = fmtMag(measured_m);
+                    document.getElementById('sim-val-kat-m-e').textContent = m_diff !== null ? m_diff.toExponential(2) : '—';
+                    document.getElementById('sim-val-kat-tol').textContent = tolText;
                 };
 
                 document.getElementById('sim-run').addEventListener('click', run);
