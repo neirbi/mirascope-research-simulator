@@ -1474,11 +1474,28 @@
                 // s = +1 for M1 (opens up at vy1), s = -1 for M2 (opens down at vy2)
                 const parabolaY = (x, f, s, vy) => vy + s * (x * x) / (4 * f);
 
-                // Ray–parabola intersection (Card 3).
+                // Ray–parabola intersection (Card 3) with mirror-domain awareness.
                 // Substitute x(t) = ox + t·dx, y(t) = oy + t·dy into y − vy = s·x²/(4f):
                 //   s·dx²·t² + (2s·ox·dx − 4f·dy)·t + (s·ox² − 4f·(oy − vy)) = 0
                 // Coefficients below are that equation divided by 4f.
-                const intersectParabola = (ox, oy, dx, dy, f, s, vy, tMin) => {
+                //
+                // Two practical concerns folded in:
+                //   1. Numerical stability — the naive (-B ± √D)/(2A) form
+                //      catastrophically loses precision on the smaller root
+                //      whenever |B| is large (typical for grazing reverse rays).
+                //      Vieta's substitution t₂ = C/(A·t₁) computes the second
+                //      root from the well-conditioned first one. This is what
+                //      ricktu288/ray-optics does in its ParabolicMirror.
+                //   2. Mirror domain — a parabola is mathematically continuous,
+                //      but a real mirror surface only exists over a finite
+                //      domain. M1 occupies |x| ∈ [0, halfW]; M2 has the
+                //      aperture cutout, so |x| ∈ [a/2, halfW]. Roots whose hit
+                //      point falls outside the solid domain are rejected here,
+                //      not by callers — same architecture as ray-optics, where
+                //      each scene object owns its intersection logic. This
+                //      unifies forward and reverse handling: M2's hole is
+                //      "no surface" in both directions.
+                const intersectParabola = (ox, oy, dx, dy, f, s, vy, tMin, absMin, absMax) => {
                     const inv4f = 1 / (4 * f);
                     const A = s * dx * dx * inv4f;
                     const B = 2 * s * ox * dx * inv4f - dy;
@@ -1487,18 +1504,35 @@
                     if (Math.abs(A) < 1e-12) {
                         if (Math.abs(B) < 1e-12) return null;
                         const t = -C / B;
-                        return t > tMin ? t : null;
+                        if (t <= tMin) return null;
+                        const ax = Math.abs(ox + t * dx);
+                        return (ax >= absMin && ax <= absMax) ? t : null;
                     }
                     const disc = B * B - 4 * A * C;
                     if (disc < 0) return null;
                     const sq = Math.sqrt(disc);
-                    const t1 = (-B - sq) / (2 * A);
-                    const t2 = (-B + sq) / (2 * A);
+                    // Vieta's stable form — pick the well-conditioned branch for t1,
+                    // then derive t2 from the product relationship t1·t2 = C/A.
+                    const t1 = (B > 0) ? (-B - sq) / (2 * A) : (-B + sq) / (2 * A);
+                    const t2 = C / (A * t1);
+
                     let best = Infinity;
-                    if (t1 > tMin && t1 < best) best = t1;
-                    if (t2 > tMin && t2 < best) best = t2;
+                    for (const t of [t1, t2]) {
+                        if (t > tMin && t < best) {
+                            const ax = Math.abs(ox + t * dx);
+                            if (ax >= absMin && ax <= absMax) best = t;
+                        }
+                    }
                     return Number.isFinite(best) ? best : null;
                 };
+
+                // Mirror-specific helpers. Forward and reverse traces use these
+                // identically, so the physics matches in both directions and there
+                // is no separate aperture-handling code to keep in sync.
+                const intersectM1 = (ox, oy, dx, dy, p, tMin) =>
+                    intersectParabola(ox, oy, dx, dy, p.f1, +1, p.vy1, tMin, 0, p.halfW);
+                const intersectM2 = (ox, oy, dx, dy, p, tMin) =>
+                    intersectParabola(ox, oy, dx, dy, p.f2, -1, p.vy2, tMin, p.a / 2, p.halfW);
 
                 // Surface normal (Card 1): unnormalized ñ = (-x/2f, s)
                 const surfaceNormal = (x, f, s) => {
@@ -1554,36 +1588,30 @@
                     let escaped = false;
                     let exitPoint = null, exitDir = null;
 
-                    // Perform nbounces reflections
+                    // Perform nbounces reflections. intersectM1/M2 fold in the rim
+                    // limit and (for M2) the aperture cutout, so we don't hand-check
+                    // either condition here — a null return means "no solid surface
+                    // in the ray's forward path" regardless of why.
                     for (let bounce = 0; bounce < p.nbounces; bounce++) {
-                        const t1 = intersectParabola(x, y, vx, vy, p.f1, +1, p.vy1, EPS);
-                        const t2 = intersectParabola(x, y, vx, vy, p.f2, -1, p.vy2, EPS);
+                        const t1 = intersectM1(x, y, vx, vy, p, EPS);
+                        const t2 = intersectM2(x, y, vx, vy, p, EPS);
 
                         let t = null, mirror = null;
                         if (t1 !== null && (t2 === null || t1 < t2)) { t = t1; mirror = 1; }
                         else if (t2 !== null) { t = t2; mirror = 2; }
-                        else return { points, escaped: false, exitPoint: null, exitDir: null };
-
-                        const hitX = x + t * vx;
-                        const hitY = y + t * vy;
-
-                        // Outside rim — ray misses, dies
-                        if (Math.abs(hitX) > p.halfW) return { points, escaped: false, exitPoint: null, exitDir: null };
-
-                        // If first interaction is M2 INSIDE aperture, ray escapes
-                        // immediately without reflecting (a "leaky" path — still
-                        // valid trace but doesn't form image, count as not escaped
-                        // for image purposes). We still draw it so user sees the
-                        // direct-leak rays.
-                        const inAperture = mirror === 2 && Math.abs(hitX) < p.a / 2;
-                        if (inAperture && bounce < p.nbounces) {
-                            // Direct leak — draw a short stub and report not-escaped
-                            // (since it didn't go through the full reflection chain)
-                            points.push([hitX, hitY]);
+                        else {
+                            // No solid surface ahead. If the ray is heading toward the
+                            // aperture, draw a stub up to the aperture plane so the
+                            // direct-leak path stays visible; otherwise it just ends.
+                            const exitX = rayCrossesY(x, y, vx, vy, p.vy2);
+                            if (exitX !== null && Math.abs(exitX) < p.a / 2) {
+                                points.push([exitX, p.vy2]);
+                            }
                             return { points, escaped: false, exitPoint: null, exitDir: null };
                         }
 
-                        // Reflect
+                        const hitX = x + t * vx;
+                        const hitY = y + t * vy;
                         points.push([hitX, hitY]);
                         const [nx, ny] = surfaceNormal(hitX, mirror === 1 ? p.f1 : p.f2, mirror === 1 ? +1 : -1);
                         [vx, vy] = reflect(vx, vy, nx, ny);
@@ -1592,17 +1620,15 @@
                         x = hitX; y = hitY;
                     }
 
-                    // After nbounces reflections, ray is at (x,y) going (vx,vy).
-                    // Test exit: does this straight line cross y=vy2 within aperture
-                    // without first being blocked by M2's solid annulus?
-                    const tBlocked = intersectParabola(x, y, vx, vy, p.f2, -1, p.vy2, EPS);
+                    // After nbounces reflections, test exit: does the straight line
+                    // cross y = vy2 within the aperture without first being blocked
+                    // by M2's solid annulus? intersectM2 returns null for hits in
+                    // the hole, so a non-null result here is unambiguously "blocked".
+                    const tBlocked = intersectM2(x, y, vx, vy, p, EPS);
                     let blockedByM2 = false;
                     if (tBlocked !== null) {
-                        const blockX = x + tBlocked * vx;
-                        if (Math.abs(blockX) >= p.a / 2 && Math.abs(blockX) <= p.halfW) {
-                            blockedByM2 = true;
-                            points.push([blockX, y + tBlocked * vy]);
-                        }
+                        blockedByM2 = true;
+                        points.push([x + tBlocked * vx, y + tBlocked * vy]);
                     }
 
                     if (!blockedByM2) {
@@ -1623,54 +1649,29 @@
                     return { points, escaped, exitPoint, exitDir };
                 };
 
-                // Aperture-aware M2 intersection. The aperture is a circular hole in
-                // M2, so any intersection of the ray line with M2's parabola at
-                // |x| < a/2 is mathematical-only — physically the ray passes straight
-                // through that region. If the first root falls in the hole, try the
-                // second; if both do, the ray misses M2 entirely.
-                //
-                // This matters most for reverse traces: a ray starting at the exit
-                // point (ex, vy2) is above M2's curve (which sits at vy2 − x²/(4·f₂)
-                // for x ≠ 0), so the very next M2 root sits at a small positive t
-                // inside the aperture — the EPS guard only catches it when x = 0.
-                // Without this guard, off-axis reverse rays bounce off a surface
-                // that isn't there.
-                const intersectM2Aperture = (ox, oy, dx, dy, p, tMin) => {
-                    let t = intersectParabola(ox, oy, dx, dy, p.f2, -1, p.vy2, tMin);
-                    if (t === null) return null;
-                    const hitX = ox + t * dx;
-                    if (Math.abs(hitX) >= p.a / 2) return t;
-                    // First root is in the hole — look beyond it for the next root.
-                    t = intersectParabola(ox, oy, dx, dy, p.f2, -1, p.vy2, t + EPS);
-                    if (t === null) return null;
-                    const hitX2 = ox + t * dx;
-                    return Math.abs(hitX2) >= p.a / 2 ? t : null;
-                };
-
                 // Reverse-trace helper: from (x0, y0) heading (vx0, vy0), perform
                 // exactly n reflections (auto-selecting the closest mirror each time)
-                // and return the final position + unit direction. Uses the aperture-
-                // aware M2 intersection so the hole is correctly treated as empty
-                // space, not a phantom mirror surface.
+                // and return the final position + unit direction. Uses the same
+                // intersectM1/M2 helpers as forward traceRay, so the physics is
+                // identical in both directions — there is no separate aperture-
+                // handling code to keep in sync.
                 //
                 // Return contract:
                 //   success → { x, y, vx, vy }
-                //   failure → { error: 'no_intersection' | 'outside_rim',
-                //               bounce: i, mirror }
+                //   failure → { error: 'no_intersection', bounce: i }
                 // The structured failure is consumed by the validator to break
                 // results down by failure mode rather than just counting nulls.
                 const traceReflections = (x0, y0, vx0, vy0, p, n) => {
                     let x = x0, y = y0, vx = vx0, vy = vy0;
                     for (let i = 0; i < n; i++) {
-                        const t1 = intersectParabola(x, y, vx, vy, p.f1, +1, p.vy1, EPS);
-                        const t2 = intersectM2Aperture(x, y, vx, vy, p, EPS);
+                        const t1 = intersectM1(x, y, vx, vy, p, EPS);
+                        const t2 = intersectM2(x, y, vx, vy, p, EPS);
                         let t = null, mirror = null;
                         if (t1 !== null && (t2 === null || t1 < t2)) { t = t1; mirror = 1; }
                         else if (t2 !== null) { t = t2; mirror = 2; }
                         else return { error: 'no_intersection', bounce: i, mirror: null };
                         const hitX = x + t * vx;
                         const hitY = y + t * vy;
-                        if (Math.abs(hitX) > p.halfW) return { error: 'outside_rim', bounce: i, mirror };
                         const [nx, ny] = surfaceNormal(hitX, mirror === 1 ? p.f1 : p.f2, mirror === 1 ? +1 : -1);
                         [vx, vy] = reflect(vx, vy, nx, ny);
                         const dlen = Math.sqrt(vx * vx + vy * vy);
