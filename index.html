@@ -1204,9 +1204,10 @@
                         </div>
 
                         <div class="sim__stats" id="sim-stats">
-                            <span>rays traced: <span class="sim__stat-value" id="sim-stat-traced">—</span></span>
-                            <span>image-forming: <span class="sim__stat-value" id="sim-stat-escaped">—</span></span>
-                            <span>total bounces: <span class="sim__stat-value" id="sim-stat-bounces">—</span></span>
+                            <span>D (rim): <span class="sim__stat-value" id="sim-stat-D">—</span></span>
+                            <span>mirror depth: <span class="sim__stat-value" id="sim-stat-depth">—</span></span>
+                            <span>image height: <span class="sim__stat-value" id="sim-stat-imgh">—</span></span>
+                            <span>viewing angle: <span class="sim__stat-value" id="sim-stat-angle">—</span></span>
                         </div>
                     </div>
 
@@ -1715,9 +1716,29 @@
                         }
                     });
 
-                    document.getElementById('sim-stat-traced').textContent = totalTraced;
-                    document.getElementById('sim-stat-escaped').textContent = totalEscaped;
-                    document.getElementById('sim-stat-bounces').textContent = totalEscaped * p.nbounces;
+                    // Stats — derived device dimensions and the resulting image/viewing geometry.
+                    // D is computed from the rim formula; depth (sagitta) is D²/(16f) at the rim;
+                    // image height is the center LED's convergence above the aperture plane;
+                    // viewing angle is the max half-angle from vertical across all escaped rays.
+                    const depth = (p.D * p.D) / (16 * p.f1);
+                    const centerImg = ledData[1].imagePoint;
+                    const imgH = centerImg ? centerImg[1] - p.vy2 : null;
+
+                    let maxHalfAngle = 0;
+                    ledData.forEach(({ traces }) => {
+                        traces.forEach((r) => {
+                            if (!r.escaped || !r.exitDir) return;
+                            const [vx, vy] = r.exitDir;
+                            if (vy <= 0) return;
+                            const a = Math.atan2(Math.abs(vx), vy) * 180 / Math.PI;
+                            if (a > maxHalfAngle) maxHalfAngle = a;
+                        });
+                    });
+
+                    document.getElementById('sim-stat-D').textContent = `${p.D.toFixed(1)} mm`;
+                    document.getElementById('sim-stat-depth').textContent = `${depth.toFixed(1)} mm`;
+                    document.getElementById('sim-stat-imgh').textContent = imgH !== null ? `${imgH.toFixed(1)} mm` : '—';
+                    document.getElementById('sim-stat-angle').textContent = totalEscaped > 0 ? `${maxHalfAngle.toFixed(0)}°` : '—';
                 };
 
                 document.getElementById('sim-run').addEventListener('click', run);
