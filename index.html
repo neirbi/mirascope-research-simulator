@@ -1252,6 +1252,13 @@
                                 </div>
                             </div>
                             <div class="sim__field">
+                                <label for="sim-obj-d">object Ø</label>
+                                <div class="sim__input-wrap">
+                                    <input type="number" id="sim-obj-d" value="20" step="1" min="0" max="120">
+                                    <span class="sim__unit">mm</span>
+                                </div>
+                            </div>
+                            <div class="sim__field">
                                 <label for="sim-rays">rays / LED</label>
                                 <div class="sim__input-wrap">
                                     <input type="number" id="sim-rays" value="2" step="1" min="2" max="60">
@@ -1344,7 +1351,6 @@
                 const EPS = 1e-4;
 
                 const LED_COLORS = ['#E63946', '#2FAE6F', '#0071E3'];
-                const LED_OFFSETS = [-10, 0, 10]; // x positions (relative to axis)
 
                 const readParams = () => {
                     const f1 = Math.max(1, +document.getElementById('sim-f1').value);
@@ -1352,6 +1358,7 @@
                     const dsep = Math.max(1, +document.getElementById('sim-dsep').value);
                     const a = Math.max(0, +document.getElementById('sim-aperture').value);
                     const h_obj = Math.max(0, +document.getElementById('sim-hobj').value);
+                    const obj_d = Math.max(0, +document.getElementById('sim-obj-d').value);
                     const nrays = Math.max(1, Math.floor(+document.getElementById('sim-rays').value));
                     const nbounces = Math.max(2, Math.floor(+document.getElementById('sim-bounces').value));
 
@@ -1360,7 +1367,7 @@
                     const halfW = rimSq > 0 ? Math.sqrt(rimSq) : 0;
 
                     return {
-                        f1, f2, dsep, a, h_obj, nrays, nbounces,
+                        f1, f2, dsep, a, h_obj, obj_d, nrays, nbounces,
                         vy1: -dsep / 2,
                         vy2: +dsep / 2,
                         halfW,
@@ -1566,7 +1573,11 @@
                     while (svg.firstChild) svg.removeChild(svg.firstChild);
 
                     let totalTraced = 0, totalEscaped = 0;
-                    const ledData = LED_OFFSETS.map((ledX, i) => {
+                    // LED x-positions are the 2-D cross-section of a circular object of
+                    // diameter obj_d: red on the −d/2 side, green at the centre, blue
+                    // on the +d/2 side. The three LEDs lie on a horizontal chord.
+                    const ledOffsets = [-p.obj_d / 2, 0, +p.obj_d / 2];
+                    const ledData = ledOffsets.map((ledX, i) => {
                         // Object position: on M1 surface at offset ledX
                         const objY = parabolaY(ledX, p.f1, +1, p.vy1) + p.h_obj + EPS * 10;
                         const traces = [];
