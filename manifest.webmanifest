@@ -1,0 +1,14 @@
+{
+  "name": "Mirascope Optical Simulation",
+  "short_name": "Mirascope",
+  "description": "Geometric model, simulator, validation, optimizer, and research directions for parabolic mirror optical illusion devices.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FBFBFD",
+  "theme_color": "#FBFBFD",
+  "icons": [
+    { "src": "/favicon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/favicon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/favicon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
