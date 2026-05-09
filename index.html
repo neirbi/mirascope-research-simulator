@@ -2945,6 +2945,7 @@
                         const eps = 0.02;
                         const expandList = [];
                         const raMax = Math.max(...bounds.raValues);
+                        const raMin = Math.min(...bounds.raValues);
                         if (best.ra >= raMax - 1e-6) {
                             // Add larger r_a values; cap at 0.85 (physically
                             // larger apertures than rim diameter are nonsense).
@@ -2953,7 +2954,19 @@
                                 for (let v = raMax + 0.05; v <= newMax + 1e-9; v += 0.05) {
                                     bounds.raValues.push(Math.round(v * 100) / 100);
                                 }
-                                expandList.push(`r_a → ${newMax.toFixed(2)}`);
+                                expandList.push(`r_a max → ${newMax.toFixed(2)}`);
+                            }
+                        }
+                        if (best.ra <= raMin + 1e-6) {
+                            // Add smaller r_a values; floor at 0.01 (below this
+                            // the aperture is so small that almost no rays escape).
+                            const newMin = Math.max(0.01, raMin - 0.05);
+                            if (newMin < raMin) {
+                                for (let v = raMin - 0.01; v >= newMin - 1e-9; v -= 0.01) {
+                                    if (v > 0.005) bounds.raValues.push(Math.round(v * 1000) / 1000);
+                                }
+                                bounds.raValues.sort((a, b) => a - b);
+                                expandList.push(`r_a min → ${newMin.toFixed(3)}`);
                             }
                         }
                         if (best.r1 <= bounds.rLo + eps || best.r2 <= bounds.rLo + eps) {
