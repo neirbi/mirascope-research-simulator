@@ -1696,6 +1696,14 @@
                                 </div>
                             </div>
                             <div class="sim__field">
+                                <label for="sim-view-d">viewing distance</label>
+                                <input type="range" class="sim__slider" id="sim-view-d-range" min="100" max="3000" step="10" value="500" aria-label="viewing distance">
+                                <div class="sim__input-wrap">
+                                    <input type="number" id="sim-view-d" value="500" step="10" min="100" max="3000">
+                                    <span class="sim__unit">mm</span>
+                                </div>
+                            </div>
+                            <div class="sim__field">
                                 <label for="sim-rays">rays / LED</label>
                                 <input type="range" class="sim__slider" id="sim-rays-range" min="2" max="60" step="1" value="2" aria-label="rays per LED">
                                 <div class="sim__input-wrap">
@@ -1757,6 +1765,32 @@
                 </div>
 
                 <div class="changelog-list">
+
+                    <details class="changelog-item" name="changelog">
+                        <summary class="changelog-item__head">
+                            <time class="changelog-item__date" datetime="2026-05-09">2026-05-09</time>
+                            <span class="changelog-item__tag changelog-item__tag--break">rewrite</span>
+                            <span class="changelog-item__title">Spot cap derived from viewing distance, not "5% of object."</span>
+                            <svg class="changelog-item__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <div class="changelog-item__body">
+                            <p>Replaced the arbitrary <code>spot_cap = max(1 mm, 0.05 × Ø_obj)</code> with a physics-grounded criterion: <code>spot_cap = viewing_distance × eye_resolution</code>, where eye angular resolution is 1 arcminute (≈ 0.000291 rad). Added a "viewing distance" input (default 500 mm; useful range 100–3000 mm). For typical desk viewing (50 cm): cap ≈ 145 µm. For museum/display (3 m): cap ≈ 870 µm. The optimizer now produces ONE device per (h_obj, Ø_obj, viewing_distance) — no more arbitrary tuning knob.</p>
+                            <p class="changelog-item__why">The 5%-of-object cap had no physical anchor; it was a number I chose because it produced reasonable device sizes. Different choices gave different "optima," so the optimizer's answer was conditional on a fudge factor I'd hardcoded. Eye-resolution at viewing distance is the actual physical criterion for "image looks sharp." Devices designed for closer viewing need lower spot RMS; devices for farther viewing tolerate more. The user specifies the application context (viewing distance), and the optimizer derives the criterion. Convergence to one answer per use case, with no tunable heuristics in the pipeline.</p>
+                        </div>
+                    </details>
+
+                    <details class="changelog-item" name="changelog">
+                        <summary class="changelog-item__head">
+                            <time class="changelog-item__date" datetime="2026-05-09">2026-05-09</time>
+                            <span class="changelog-item__tag changelog-item__tag--feat">feat</span>
+                            <span class="changelog-item__title">Cross-referenced phydemo's mirascope simulation.</span>
+                            <svg class="changelog-item__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <div class="changelog-item__body">
+                            <p>Reviewed the open-source ray-optics simulator at phydemo.app/ray-optics/gallery/the-mirascope. Their JSON shows: (a) <strong>asymmetric mirascope geometry</strong> — different focal coefficients for M1 (5.5) and M2 (6.55), confirming asymmetric configurations are accepted in published educational software, not just our novel direction; (b) <strong>aperture ratio r_a ≈ 0.16</strong>, distinct from the Adhya-Noé toy's 0.45 and our optimizer's earlier 0.35 — three different valid operating points for three different objectives; (c) their cleaner-looking visualization uses a small object + narrow ray fan + fewer rays, which masks aberration that our wider-fan visualization correctly surfaces.</p>
+                            <p class="changelog-item__why">The asymmetric direction we've been exploring is endorsed by independent published software, removing one open question. The disagreement on aperture ratio is real but not a contradiction — it's evidence that "the right mirascope" depends entirely on what you're optimizing for, which is exactly the case for grounding the spot cap in physics (the entry above). Our visualization "knots" are honest geometric aberration, not noise — confirmed by side-by-side comparison.</p>
+                        </div>
+                    </details>
 
                     <details class="changelog-item" name="changelog">
                         <summary class="changelog-item__head">
@@ -2667,18 +2701,25 @@
                 // Score a candidate geometry. Returns null on hard failure;
                 // otherwise returns { score, intersectWidth, ... } where
                 // score is intersect viewing angle width in degrees.
-                // Spot-RMS cap scales with object diameter — "sharp" in
-                // optics is RMS small relative to image size, not an absolute
-                // threshold. 5% of object Ø with a 1 mm floor matches the
-                // standard rule-of-thumb for visually sharp imaging and stops
-                // the optimizer from demanding meter-scale devices for
-                // centimeter-scale objects.
+                //
+                // Spot-RMS cap is now physics-derived from viewing distance:
+                // the human eye resolves angular blurs down to ~1 arcminute
+                // (≈ 0.000291 rad) at high contrast. So a spot RMS smaller
+                // than viewing_distance × 0.000291 is below the eye's
+                // resolution threshold at that distance — perceptually
+                // sharp. Replaces the prior arbitrary "5% of object Ø"
+                // heuristic with a single application-grounded criterion.
+                //
+                // For viewing distance 500 mm (typical desk): spot cap ≈
+                // 0.145 mm. For 1 m: 0.291 mm. For 3 m (museum/display):
+                // 0.873 mm.
                 const ESCAPE_FRAC_MIN = 0.5;
-                const spotLimitFor = (obj_d) => Math.max(1.0, obj_d * 0.05);
-                const scoreCandidate = (r1, r2, ra, dsep, h_obj, obj_d, nbounces, nrays) => {
+                const EYE_ARCMIN_RAD = 1 / 60 * Math.PI / 180; // 1 arcmin = 0.000291 rad
+                const spotLimitForViewing = (viewDist) => Math.max(0.05, viewDist * EYE_ARCMIN_RAD);
+                const scoreCandidate = (r1, r2, ra, dsep, h_obj, obj_d, nbounces, nrays, viewDist) => {
                     const p = paramsFromRatios(r1, r2, ra, dsep, h_obj, obj_d, nbounces);
                     if (!p) return null;
-                    const spotCap = spotLimitFor(obj_d);
+                    const spotCap = spotLimitForViewing(viewDist);
                     const ledOffsets = [-obj_d / 2, 0, +obj_d / 2];
                     let intersectMin = -Infinity, intersectMax = +Infinity;
                     let worstSpot = 0;
@@ -2750,7 +2791,7 @@
                 // at any boundary on the first pass.
                 const R_LO_DEFAULT = 0.6, R_HI_DEFAULT = 2.4, R_STEPS = 15;
                 const RA_VALUES_DEFAULT = [0.08, 0.10, 0.12, 0.15, 0.18, 0.22, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50];
-                const searchAtScale = (dsep, h_obj, obj_d, nbounces, nraysOpt, bounds) => {
+                const searchAtScale = (dsep, h_obj, obj_d, nbounces, nraysOpt, bounds, viewDist) => {
                     const R_LO = bounds.rLo, R_HI = bounds.rHi;
                     const RA_VALUES = bounds.raValues;
                     const dr = (R_HI - R_LO) / (R_STEPS - 1);
@@ -2761,7 +2802,7 @@
                             const r1 = R_LO + i * dr;
                             for (let j = 0; j < R_STEPS; j++) {
                                 const r2 = R_LO + j * dr;
-                                const c = scoreCandidate(r1, r2, ra, dsep, h_obj, obj_d, nbounces, nraysOpt);
+                                const c = scoreCandidate(r1, r2, ra, dsep, h_obj, obj_d, nbounces, nraysOpt, viewDist);
                                 if (c && (!best || c.score > best.score)) { best = c; bestRa = ra; }
                             }
                         }
@@ -2771,7 +2812,7 @@
                     const objective = (x) => {
                         const r1 = Math.min(R_HI, Math.max(R_LO, x[0]));
                         const r2 = Math.min(R_HI, Math.max(R_LO, x[1]));
-                        const c = scoreCandidate(r1, r2, bestRa, dsep, h_obj, obj_d, nbounces, nraysOpt);
+                        const c = scoreCandidate(r1, r2, bestRa, dsep, h_obj, obj_d, nbounces, nraysOpt, viewDist);
                         if (!c) return 1e6;
                         return -c.score;
                     };
@@ -2779,7 +2820,7 @@
                     const pc = scoreCandidate(
                         Math.min(R_HI, Math.max(R_LO, polished.x[0])),
                         Math.min(R_HI, Math.max(R_LO, polished.x[1])),
-                        bestRa, dsep, h_obj, obj_d, nbounces, nraysOpt
+                        bestRa, dsep, h_obj, obj_d, nbounces, nraysOpt, viewDist
                     );
                     if (pc && pc.score > best.score) best = pc;
                     return best;
@@ -2814,6 +2855,8 @@
 
                     const cur = readParams();
                     const h_obj = cur.h_obj, obj_d = cur.obj_d, nbounces = cur.nbounces;
+                    const viewDist = Math.max(50, +document.getElementById('sim-view-d').value || 500);
+                    const spotCapDerived = spotLimitForViewing(viewDist);
                     const nraysOpt = 24;
 
                     // ─────────────────────────────────────────────────────
@@ -2852,7 +2895,7 @@
                         // Run inner search at each d_sep.
                         tier = [];
                         for (const dsep of dsepCandidates) {
-                            const result = searchAtScale(dsep, h_obj, obj_d, nbounces, nraysOpt, bounds);
+                            const result = searchAtScale(dsep, h_obj, obj_d, nbounces, nraysOpt, bounds, viewDist);
                             if (result) tier.push({ dsep, result, score: result.score });
                         }
                         if (tier.length === 0) break; // infeasible — handled below
@@ -2955,7 +2998,8 @@
                     const expansionNote = expansions > 0
                         ? ` Bounds expanded ${expansions}× (${expansionLog.join('; ')}).`
                         : '';
-                    summaryEl.textContent = `Intersect viewing angle: ${best.score.toFixed(1)}° (window [${best.intersectMin.toFixed(1)}°, ${best.intersectMax.toFixed(1)}°]). Worst spot RMS ${spotStr}. Scale curve (d_sep→angle): ${curve}.${expansionNote}`;
+                    const capStr = spotCapDerived < 1 ? `${(spotCapDerived * 1000).toFixed(0)} µm` : `${spotCapDerived.toFixed(2)} mm`;
+                    summaryEl.textContent = `Intersect viewing angle: ${best.score.toFixed(1)}° (window [${best.intersectMin.toFixed(1)}°, ${best.intersectMax.toFixed(1)}°]). Worst spot RMS ${spotStr} (cap ${capStr} from viewing distance ${viewDist} mm × eye 1 arcmin). Scale curve (d_sep→angle): ${curve}.${expansionNote}`;
                     paramsEl.textContent = `Ratios — r₁=${best.r1.toFixed(3)} · r₂=${best.r2.toFixed(3)} · r_a=${best.ra.toFixed(3)}    |    Absolute — f₁=${f1r} mm · f₂=${f2r} mm · d_sep=${dsepr} mm · a=${ar} mm · D=${best.p.D.toFixed(1)} mm`;
                 };
 
@@ -3656,6 +3700,7 @@
                     ['sim-aperture', 'sim-aperture-range'],
                     ['sim-hobj',     'sim-hobj-range'],
                     ['sim-obj-d',    'sim-obj-d-range'],
+                    ['sim-view-d',   'sim-view-d-range'],
                     ['sim-rays',     'sim-rays-range'],
                     ['sim-bounces',  'sim-bounces-range'],
                 ].forEach(([numId, rangeId]) => {
