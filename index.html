@@ -1735,6 +1735,19 @@
                     <details class="changelog-item" name="changelog">
                         <summary class="changelog-item__head">
                             <time class="changelog-item__date" datetime="2026-05-09">2026-05-09</time>
+                            <span class="changelog-item__tag changelog-item__tag--fix">fix</span>
+                            <span class="changelog-item__title">Paraxial KAT N/A'd because mirascope geometry rejects paraxial rays.</span>
+                            <svg class="changelog-item__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <div class="changelog-item__body">
+                            <p>Original Paraxial KAT used a ±2° fan from the LED. In mirascope geometry those rays travel up the optical axis and pass straight through the aperture without ever bouncing off M2 — the aperture is intrinsically larger than what a paraxial fan covers. Result: KAT always returned N/A. Replaced with a narrow 1° fan anchored just outside the aperture-grazing angle (the smallest angle from the LED that actually hits M2's mirror surface). Tolerance widened to 15% relative + 2 mm / 0.05× absolute floor to absorb the systematic bias from the non-zero central angle.</p>
+                            <p class="changelog-item__why">A KAT that never runs validates nothing. The grazing-angle fan is the correct paraxial-equivalent for mirascope geometry: it has small angular spread (so within-bundle aberration is small), it always bounces (so an image forms), and its centroid is close to but not identical to the pure paraxial prediction. The looser tolerance reflects this physical reality — bias is bounded but non-zero.</p>
+                        </div>
+                    </details>
+
+                    <details class="changelog-item" name="changelog">
+                        <summary class="changelog-item__head">
+                            <time class="changelog-item__date" datetime="2026-05-09">2026-05-09</time>
                             <span class="changelog-item__tag changelog-item__tag--feat">feat</span>
                             <span class="changelog-item__title">Paraxial KAT — closes the asymmetric-bug gap.</span>
                             <svg class="changelog-item__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
@@ -2822,18 +2835,33 @@
                     return { d_image, h_image, mag };
                 };
 
-                // Run a paraxial-only trace (±2° fan of 7 rays) for the
-                // Paraxial KAT. Wide-angle aberration in asymmetric configs
-                // shifts the centroid of a ±70° fan by a few mm; using
-                // narrow rays isolates trace correctness from aberration so
-                // the comparison against paraxial prediction is meaningful.
+                // Run a narrow ray fan anchored just OUTSIDE the aperture-
+                // grazing angle for the Paraxial KAT. Mirascope geometry
+                // intrinsically rejects truly small-angle rays (they escape
+                // through the aperture without bouncing), so a ±2° fan from
+                // h_obj=0 produces no image. Instead, find the angle that
+                // grazes the aperture edge (smallest bouncing angle) and
+                // shoot a tight 1° fan just outside it on each side. The fan
+                // has small angular spread, so within-bundle aberration is
+                // small and the convergence is close to (but not identical
+                // to) the paraxial prediction. The systematic bias from the
+                // non-zero central angle is absorbed by the KAT's tolerance.
                 const paraxialTrace = (ledX, p) => {
                     const objY = parabolaY(ledX, p.f1, +1, p.vy1) + p.h_obj;
+                    const verticalDistance = p.vy2 - objY;
+                    if (verticalDistance <= 0) return null;
+                    const apHalf = p.a / 2;
+                    // Grazing angles to right and left aperture edges.
+                    const grazingR = Math.atan2(apHalf - ledX, verticalDistance) * 180 / Math.PI;
+                    const grazingL = Math.atan2(-apHalf - ledX, verticalDistance) * 180 / Math.PI;
+                    // Narrow fan: 3 rays each side, 0.5° to 1.5° outside grazing.
+                    const angles = [];
+                    for (let i = 0; i < 3; i++) {
+                        angles.push(grazingR + 0.5 + i * 0.5);
+                        angles.push(grazingL - 0.5 - i * 0.5);
+                    }
                     const escaped = [];
-                    const N = 7;
-                    for (let r = 0; r < N; r++) {
-                        const frac = (r + 0.5) / N;
-                        const angleDeg = -2 + 4 * frac; // −2° to +2°
+                    for (const angleDeg of angles) {
                         const theta = angleDeg * Math.PI / 180;
                         const dx = Math.sin(theta);
                         const dy = Math.cos(theta);
@@ -3072,7 +3100,13 @@
                                 ? Math.abs(redP[0] - blueP[0]) / p.obj_d
                                 : null;
 
-                            const PABS_H = 0.5, PABS_M = 0.02, PREL = 0.05;
+                            // Tolerances absorb the systematic bias from the
+                            // non-zero central angle of the grazing fan
+                            // (mirascope geometry rejects truly paraxial rays).
+                            // 15% relative + 2 mm / 0.05× absolute floor:
+                            // tight enough to catch routing bugs, loose enough
+                            // to allow the geometric bias the test inherits.
+                            const PABS_H = 2.0, PABS_M = 0.05, PREL = 0.15;
                             const ph_thr = Math.max(PABS_H, PREL * Math.abs(pf_h));
                             const pm_thr = Math.max(PABS_M, PREL * Math.abs(pf_m));
                             ph_diff = Math.abs(pm_h - pf_h);
@@ -3081,18 +3115,18 @@
                             const pm_pass = pm_diff === null || pm_diff < pm_thr;
                             const passed = ph_pass && pm_pass;
 
-                            pTolText = `5% rel · ${PABS_H} mm / ${PABS_M}× abs floor`;
+                            pTolText = `15% rel · ${PABS_H} mm / ${PABS_M}× abs floor`;
                             if (passed) {
                                 pkatStatus = 'pass'; pkatBadge = '✓ PASS';
                                 const cfgLabel = (Math.abs(p.f1 - p.f2) < 0.5 && Math.abs(p.f1 - p.dsep) < 0.5)
                                     ? 'canonical' : 'asymmetric';
-                                pkatSummary = `${cfgLabel} mirascope (f₁=${p.f1}, f₂=${p.f2}, d_sep=${p.dsep}) at h_obj=${p.h_obj} mm — paraxial trace matches matrix prediction within ${(PREL * 100).toFixed(0)}%`;
+                                pkatSummary = `${cfgLabel} mirascope (f₁=${p.f1}, f₂=${p.f2}, d_sep=${p.dsep}) at h_obj=${p.h_obj} mm — narrow grazing-angle trace matches matrix prediction within ${(PREL * 100).toFixed(0)}%`;
                             } else {
                                 pkatStatus = 'fail'; pkatBadge = '✗ FAIL';
                                 const fails = [];
                                 if (!ph_pass) fails.push(`image height off by ${ph_diff.toFixed(3)} mm (threshold ${ph_thr.toFixed(3)} mm)`);
                                 if (pm_diff !== null && !pm_pass) fails.push(`magnification off by ${pm_diff.toFixed(4)} (threshold ${pm_thr.toFixed(4)})`);
-                                pkatSummary = `paraxial trace disagrees with matrix prediction — ${fails.join('; ')}. This indicates a bug in the trace that reversibility didn't catch.`;
+                                pkatSummary = `narrow grazing-angle trace disagrees with matrix prediction — ${fails.join('; ')}. Bias should be small and bounded; this exceeds it. Indicates a real trace bug that reversibility didn't catch.`;
                             }
                         }
                     }
