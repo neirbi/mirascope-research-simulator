@@ -1416,6 +1416,94 @@
             background: var(--color-bg-primary);
         }
 
+        /* ───────────────────────────────────────────────────────────
+           CREDITS — bibliography of prior work that this project
+           builds on. Unlike the changelog and roadmap (which use
+           collapsible cards), this section is a flat citation list
+           in academic-paper style. Each reference is a single block
+           with bracketed number, author/year, title (italic),
+           venue, and link.
+
+           Single-column flow, hanging-indent layout so the citation
+           number sits in its own column on the left. Tokens for
+           dark-mode and spacing as everywhere else. Group headers
+           ("Prior research", "Software", "Foundational") for
+           lightweight categorization.
+           ─────────────────────────────────────────────────────────── */
+        .credits-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-md);
+            margin-top: var(--space-lg);
+        }
+        .credits-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+        .credits-group__label {
+            font-size: 0.75rem;
+            font-weight: var(--weight-bold);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--color-text-tertiary);
+            margin: 0 0 var(--space-xs);
+            padding-bottom: var(--space-xs);
+            border-bottom: 1px solid var(--color-border-subtle);
+        }
+        .credit {
+            display: grid;
+            grid-template-columns: 2.25rem 1fr;
+            gap: var(--space-sm);
+            font-size: 0.9375rem;
+            line-height: 1.6;
+            color: var(--color-text-secondary);
+        }
+        .credit__num {
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            font-weight: var(--weight-bold);
+            color: var(--color-text-tertiary);
+            text-align: right;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+        .credit__body {
+            min-width: 0;
+        }
+        .credit__authors {
+            color: var(--color-text-primary);
+            font-weight: var(--weight-semibold);
+        }
+        .credit__title {
+            font-style: italic;
+        }
+        .credit__venue {
+            color: var(--color-text-tertiary);
+        }
+        .credit__link {
+            display: inline-block;
+            margin-top: 0.15rem;
+            font-family: var(--font-mono);
+            font-size: 0.8125rem;
+            color: var(--color-accent);
+            text-decoration: none;
+            word-break: break-all;
+            border-bottom: 1px solid transparent;
+            transition: border-color var(--transition-base);
+        }
+        .credit__link:hover,
+        .credit__link:focus-visible {
+            border-bottom-color: var(--color-accent);
+        }
+        .credit__note {
+            display: block;
+            margin-top: 0.15rem;
+            font-size: 0.8125rem;
+            color: var(--color-text-tertiary);
+            font-style: italic;
+        }
+
         @media (min-width: 48em) {
             :root { --container-padding: var(--space-lg); }
         }
@@ -1456,7 +1544,6 @@
                     <li><a class="site-nav__link" href="#simulator">Simulator</a></li>
                     <li><a class="site-nav__link" href="#changelog">Changelog</a></li>
                     <li><a class="site-nav__link" href="#roadmap">Roadmap</a></li>
-                    <li><a class="site-nav__link" href="#research">Research</a></li>
                     <li><a class="site-nav__link" href="#credits">Credits</a></li>
                 </ul>
 
@@ -2274,6 +2361,86 @@
                             <li class="roadmap-checklist__item roadmap-checklist__item--open"><span class="roadmap-checklist__icon">?</span><span>At what manufacturing tolerance does the asymmetric advantage disappear into noise?</span></li>
                         </ul>
                     </details>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- ===========================================
+             CREDITS — bibliography of prior work
+             Treated like the references section of a research paper:
+             flat numbered citation list, grouped by category, with
+             author/year/title/venue/link for each. Distinct from the
+             changelog/roadmap accordion pattern by design.
+             =========================================== -->
+        <section class="section" id="credits" aria-labelledby="credits-title">
+            <div class="container">
+                <div class="section__inner">
+                    <p class="section__eyebrow">Credits</p>
+                    <h2 id="credits-title" class="section__title">Prior work this project <span class="gradient-text">builds on</span>.</h2>
+                </div>
+
+                <div class="credits-list">
+
+                    <div class="credits-group">
+                        <p class="credits-group__label">Prior research</p>
+
+                        <div class="credit">
+                            <span class="credit__num">[1]</span>
+                            <div class="credit__body">
+                                <span class="credit__authors">Adhya, S. &amp; Noé, J.</span> (2007).
+                                <span class="credit__title">A Complete Ray-trace Analysis of the 'Mirage' Toy</span>.
+                                <span class="credit__venue">Proceedings of ETOP 2007 — Tenth International Topical Meeting on Education and Training in Optics and Photonics, Ottawa, Canada.</span>
+                                <a class="credit__link" href="https://spie.org/etop/2007/etop07methodsV.pdf" target="_blank" rel="noopener noreferrer">spie.org/etop/2007/etop07methodsV.pdf</a>
+                                <span class="credit__note">Quantitative ray-trace analysis of the canonical toy. Our Formula KAT empirically aligns with this paper to within 1.3% on image height and 3% on magnification — the foundational reference for our validation.</span>
+                            </div>
+                        </div>
+
+                        <div class="credit">
+                            <span class="credit__num">[2]</span>
+                            <div class="credit__body">
+                                <span class="credit__authors">Krumphals, I.</span> (2019).
+                                <span class="credit__title">The Mirascope: an explanation on a conceptual level</span>.
+                                <span class="credit__venue">Physics Education, vol. 54, no. 4, article 045013. IOP Publishing.</span>
+                                <a class="credit__link" href="https://iopscience.iop.org/article/10.1088/1361-6552/ab143a" target="_blank" rel="noopener noreferrer">doi.org/10.1088/1361-6552/ab143a</a>
+                                <span class="credit__note">Conceptual / pedagogical treatment. Documents the dual-image phenomenon (real + virtual) and provides empirical experiments anyone can do at home. Confirmed our model qualitatively but doesn't add new quantitative test data.</span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="credits-group">
+                        <p class="credits-group__label">Foundational</p>
+
+                        <div class="credit">
+                            <span class="credit__num">[3]</span>
+                            <div class="credit__body">
+                                <span class="credit__authors">Elings, V. B. &amp; Landry, C. J.</span> (1972).
+                                <span class="credit__title">Optical Display Device</span>.
+                                <span class="credit__venue">U.S. Patent 3,647,284, granted March 7, 1972 (filed 1970).</span>
+                                <a class="credit__link" href="https://patents.google.com/patent/US3647284" target="_blank" rel="noopener noreferrer">patents.google.com/patent/US3647284</a>
+                                <span class="credit__note">The original mirascope patent. Two opposed concave mirrors with an aperture in the upper. Mentions in passing — without analysis — the possibility of mirrors of unequal curvature, which is exactly the asymmetric configuration our optimizer explores ~50 years later.</span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="credits-group">
+                        <p class="credits-group__label">Software</p>
+
+                        <div class="credit">
+                            <span class="credit__num">[4]</span>
+                            <div class="credit__body">
+                                <span class="credit__authors">Tu, R. et al.</span>
+                                <span class="credit__title">Ray Optics Simulation</span>.
+                                <span class="credit__venue">Open-source web-based optics simulator. Source on GitHub; live demos at phydemo.app, including a Mirascope scene used as an independent cross-reference for our trace.</span>
+                                <a class="credit__link" href="https://phydemo.app/ray-optics/gallery/the-mirascope" target="_blank" rel="noopener noreferrer">phydemo.app/ray-optics/gallery/the-mirascope</a>
+                                <a class="credit__link" href="https://github.com/ricktu288/ray-optics" target="_blank" rel="noopener noreferrer">github.com/ricktu288/ray-optics</a>
+                                <span class="credit__note">Reviewed their JSON scene description for the Mirascope. Independently validates that asymmetric (f₁ ≠ f₂) mirascope configurations are accepted in published educational software, not just our research direction.</span>
+                            </div>
+                        </div>
+
+                    </div>
 
                 </div>
             </div>
