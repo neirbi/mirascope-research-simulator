@@ -1761,6 +1761,19 @@
                     <details class="changelog-item" name="changelog">
                         <summary class="changelog-item__head">
                             <time class="changelog-item__date" datetime="2026-05-09">2026-05-09</time>
+                            <span class="changelog-item__tag changelog-item__tag--fix">fix</span>
+                            <span class="changelog-item__title">Widened RA_VALUES — search box was truncating against published mirascope.</span>
+                            <svg class="changelog-item__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <div class="changelog-item__body">
+                            <p>Optimizer's <code>RA_VALUES</code> previously capped at <code>0.22</code>. Adhya &amp; Noé (SPIE 2007, "A Complete Ray-trace Analysis of the Mirage Toy") report the actual published mirascope toy uses an aperture ratio of <code>~0.45</code> — more than 2× outside our former search ceiling. Extended set to <code>[0.08, 0.10, 0.12, 0.15, 0.18, 0.22, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50]</code>.</p>
+                            <p class="changelog-item__why">The earlier 0.18 optimum was the best within a search that didn't reach where the textbook toy actually operates. Either 0.18 survives the wider search (real optimum, just different from the toy's because the objective is different) or it was a truncated answer (real optimum sits higher). Either outcome is informative; the previous one was uninformative because the search was bounded shorter than reality.</p>
+                        </div>
+                    </details>
+
+                    <details class="changelog-item" name="changelog">
+                        <summary class="changelog-item__head">
+                            <time class="changelog-item__date" datetime="2026-05-09">2026-05-09</time>
                             <span class="changelog-item__tag changelog-item__tag--feat">feat</span>
                             <span class="changelog-item__title">Viewing Angle KAT — checks the metric math, not the trace.</span>
                             <svg class="changelog-item__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
@@ -2708,7 +2721,7 @@
                 // null if no feasible geometry exists at this scale. Used by
                 // the outer d_sep scan in optimize().
                 const R_LO = 0.6, R_HI = 2.4, R_STEPS = 15;
-                const RA_VALUES = [0.08, 0.10, 0.12, 0.15, 0.18, 0.22];
+                const RA_VALUES = [0.08, 0.10, 0.12, 0.15, 0.18, 0.22, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50];
                 const searchAtScale = (dsep, h_obj, obj_d, nbounces, nraysOpt) => {
                     const dr = (R_HI - R_LO) / (R_STEPS - 1);
                     let best = null;
