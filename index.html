@@ -1761,6 +1761,19 @@
                     <details class="changelog-item" name="changelog">
                         <summary class="changelog-item__head">
                             <time class="changelog-item__date" datetime="2026-05-09">2026-05-09</time>
+                            <span class="changelog-item__tag changelog-item__tag--feat">feat</span>
+                            <span class="changelog-item__title">Self-expanding optimizer bounds + Paraxial KAT robustness.</span>
+                            <svg class="changelog-item__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <div class="changelog-item__body">
+                            <p>Two improvements addressing problems exposed by the prior r_a truncation: (1) Optimizer now self-detects when the winner sits at any boundary (r_a == max(RA_VALUES), r1/r2 within ε of R_LO/R_HI, or d_sep at the ceiling) and re-runs with expanded bounds, up to 3 expansions. The readout reports "Bounds expanded N×" with what changed. (2) Paraxial KAT now retries with progressively wider grazing fans (1° → ~9° spread) before declaring N/A — fixes the silent N/A at high r_a configurations.</p>
+                            <p class="changelog-item__why">A bounded search that doesn't say it was bounded is dishonest about its conclusions. Self-expansion converts silent truncation into either a true optimum or a visible expansion log. The Paraxial KAT change closes a coverage gap: at r_a ≈ 0.35 the narrow grazing fan didn't produce stable convergence, and the test silently bailed; the validator should never silently produce N/A in the regime where the optimizer's actual answer lives.</p>
+                        </div>
+                    </details>
+
+                    <details class="changelog-item" name="changelog">
+                        <summary class="changelog-item__head">
+                            <time class="changelog-item__date" datetime="2026-05-09">2026-05-09</time>
                             <span class="changelog-item__tag changelog-item__tag--fix">fix</span>
                             <span class="changelog-item__title">Widened RA_VALUES — search box was truncating against published mirascope.</span>
                             <svg class="changelog-item__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
@@ -2720,9 +2733,13 @@
                 // Inner search: best (r1, r2, ra) at a given d_sep. Returns
                 // null if no feasible geometry exists at this scale. Used by
                 // the outer d_sep scan in optimize().
-                const R_LO = 0.6, R_HI = 2.4, R_STEPS = 15;
-                const RA_VALUES = [0.08, 0.10, 0.12, 0.15, 0.18, 0.22, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50];
-                const searchAtScale = (dsep, h_obj, obj_d, nbounces, nraysOpt) => {
+                // Default bounds — expanded by optimize() if the optimum sits
+                // at any boundary on the first pass.
+                const R_LO_DEFAULT = 0.6, R_HI_DEFAULT = 2.4, R_STEPS = 15;
+                const RA_VALUES_DEFAULT = [0.08, 0.10, 0.12, 0.15, 0.18, 0.22, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50];
+                const searchAtScale = (dsep, h_obj, obj_d, nbounces, nraysOpt, bounds) => {
+                    const R_LO = bounds.rLo, R_HI = bounds.rHi;
+                    const RA_VALUES = bounds.raValues;
                     const dr = (R_HI - R_LO) / (R_STEPS - 1);
                     let best = null;
                     let bestRa = null;
@@ -2786,48 +2803,101 @@
                     const h_obj = cur.h_obj, obj_d = cur.obj_d, nbounces = cur.nbounces;
                     const nraysOpt = 24;
 
-                    // d_sep candidates — geometric ladder from physical floor
-                    // to a generous ceiling. Floor enforces h_obj < f1 (since
-                    // f1 ≤ 2.4·dsep) and that the rim accommodates the object
-                    // diameter. Ceiling caps the device at something buildable.
-                    const dsepFloor = Math.max(30, h_obj * 1.1, obj_d * 1.2);
-                    const dsepCeil = Math.max(dsepFloor * 12, 200);
+                    // ─────────────────────────────────────────────────────
+                    // Self-expanding search bounds.
+                    //
+                    // After each pass, check whether the winner sits at any
+                    // boundary (r_a hit max of RA_VALUES, r1/r2 hit R_LO/R_HI
+                    // within ε, dsep hit dsepCeil). If so, expand that bound
+                    // and re-run. Up to 3 expansions to avoid runaway.
+                    //
+                    // Converts the previous silent-truncation failure mode
+                    // into either a true optimum or a visible warning.
+                    // ─────────────────────────────────────────────────────
+                    let bounds = {
+                        rLo: R_LO_DEFAULT,
+                        rHi: R_HI_DEFAULT,
+                        raValues: RA_VALUES_DEFAULT.slice(),
+                        dsepFloor: Math.max(30, h_obj * 1.1, obj_d * 1.2),
+                        dsepCeil: Math.max(Math.max(30, h_obj * 1.1, obj_d * 1.2) * 12, 200),
+                    };
                     const N_DSEP = 7;
-                    const dsepCandidates = [];
-                    for (let i = 0; i < N_DSEP; i++) {
-                        const t = i / (N_DSEP - 1);
-                        dsepCandidates.push(dsepFloor * Math.pow(dsepCeil / dsepFloor, t));
+                    const ANGLE_FRAC = 0.90;
+                    const MAX_EXPANSIONS = 3;
+                    let tier = [];
+                    let best = null;
+                    let expansions = 0;
+                    let expansionLog = [];
+
+                    for (let pass = 0; pass <= MAX_EXPANSIONS; pass++) {
+                        // Build d_sep candidate ladder for this pass.
+                        const dsepCandidates = [];
+                        for (let i = 0; i < N_DSEP; i++) {
+                            const t = i / (N_DSEP - 1);
+                            dsepCandidates.push(bounds.dsepFloor * Math.pow(bounds.dsepCeil / bounds.dsepFloor, t));
+                        }
+                        // Run inner search at each d_sep.
+                        tier = [];
+                        for (const dsep of dsepCandidates) {
+                            const result = searchAtScale(dsep, h_obj, obj_d, nbounces, nraysOpt, bounds);
+                            if (result) tier.push({ dsep, result, score: result.score });
+                        }
+                        if (tier.length === 0) break; // infeasible — handled below
+                        // Pick smallest d_sep within ANGLE_FRAC of max score.
+                        const maxScore = Math.max(...tier.map(t => t.score));
+                        const acceptable = tier
+                            .filter(t => t.score >= maxScore * ANGLE_FRAC)
+                            .sort((a, b) => a.dsep - b.dsep);
+                        best = acceptable[0].result;
+
+                        // Detect boundary hits.
+                        const eps = 0.02;
+                        const expandList = [];
+                        const raMax = Math.max(...bounds.raValues);
+                        if (best.ra >= raMax - 1e-6) {
+                            // Add larger r_a values; cap at 0.85 (physically
+                            // larger apertures than rim diameter are nonsense).
+                            const newMax = Math.min(0.85, raMax + 0.10);
+                            if (newMax > raMax) {
+                                for (let v = raMax + 0.05; v <= newMax + 1e-9; v += 0.05) {
+                                    bounds.raValues.push(Math.round(v * 100) / 100);
+                                }
+                                expandList.push(`r_a → ${newMax.toFixed(2)}`);
+                            }
+                        }
+                        if (best.r1 <= bounds.rLo + eps || best.r2 <= bounds.rLo + eps) {
+                            const newLo = Math.max(0.2, bounds.rLo - 0.3);
+                            if (newLo < bounds.rLo) {
+                                bounds.rLo = newLo;
+                                expandList.push(`r_lo → ${newLo.toFixed(2)}`);
+                            }
+                        }
+                        if (best.r1 >= bounds.rHi - eps || best.r2 >= bounds.rHi - eps) {
+                            const newHi = Math.min(5.0, bounds.rHi + 0.6);
+                            if (newHi > bounds.rHi) {
+                                bounds.rHi = newHi;
+                                expandList.push(`r_hi → ${newHi.toFixed(2)}`);
+                            }
+                        }
+                        const dsepCeilHit = Math.max(...tier.map(t => t.dsep));
+                        if (Math.abs(best.p.dsep - dsepCeilHit) < 1 && best.score >= maxScore - 0.5) {
+                            const newCeil = bounds.dsepCeil * 1.5;
+                            bounds.dsepCeil = newCeil;
+                            expandList.push(`dsep_ceil → ${Math.round(newCeil)} mm`);
+                        }
+
+                        if (expandList.length === 0) break; // converged inside bounds
+                        expansions++;
+                        expansionLog.push(`pass ${pass + 1}: ${expandList.join(', ')}`);
                     }
 
-                    // Run inner search at each d_sep. Track scores so we can
-                    // pick the smallest device that achieves near-max angle.
-                    const tier = []; // {dsep, result, score}
-                    for (const dsep of dsepCandidates) {
-                        const result = searchAtScale(dsep, h_obj, obj_d, nbounces, nraysOpt);
-                        if (result) tier.push({ dsep, result, score: result.score });
-                    }
-
-                    if (tier.length === 0) {
+                    if (!best) {
                         statusEl.textContent = 'no feasible geometry';
                         statusEl.setAttribute('data-status', 'fail');
-                        summaryEl.textContent = `No mirascope geometry between d_sep=${dsepFloor.toFixed(0)} mm and ${dsepCeil.toFixed(0)} mm satisfies all constraints (real image at aperture, spot RMS < 1 mm, ≥50% rays escape) for h_obj=${h_obj} mm, Ø_obj=${obj_d} mm. Try a smaller object.`;
+                        summaryEl.textContent = `No mirascope geometry between d_sep=${bounds.dsepFloor.toFixed(0)} mm and ${bounds.dsepCeil.toFixed(0)} mm satisfies all constraints (real image at aperture, spot RMS within cap, ≥50% rays escape) for h_obj=${h_obj} mm, Ø_obj=${obj_d} mm.`;
                         paramsEl.textContent = '';
                         return;
                     }
-
-                    // Smallest d_sep that achieves ≥90% of the best score.
-                    // Absolute angle tolerance (e.g. 1°) was way too tight —
-                    // it picked devices 8× larger than needed for marginal
-                    // angle gains. A 90% threshold gives the natural knee:
-                    // compact device that captures most of the achievable
-                    // viewing window, since angle vs scale is a saturating
-                    // curve.
-                    const maxScore = Math.max(...tier.map(t => t.score));
-                    const ANGLE_FRAC = 0.90;
-                    const threshold = maxScore * ANGLE_FRAC;
-                    const acceptable = tier.filter(t => t.score >= threshold);
-                    acceptable.sort((a, b) => a.dsep - b.dsep);
-                    const best = acceptable[0].result;
 
                     // Write absolute mm back. Round to integer (slider step).
                     const f1r = Math.round(best.p.f1);
@@ -2869,7 +2939,10 @@
                         : `${best.worstSpot.toFixed(2)} mm`;
                     // Tier curve so the user can see how angle grew with scale.
                     const curve = tier.map(t => `${Math.round(t.dsep)}→${t.score.toFixed(0)}°`).join(' · ');
-                    summaryEl.textContent = `Intersect viewing angle: ${best.score.toFixed(1)}° (window [${best.intersectMin.toFixed(1)}°, ${best.intersectMax.toFixed(1)}°]). Worst spot RMS ${spotStr}. Scale curve (d_sep→angle): ${curve}.`;
+                    const expansionNote = expansions > 0
+                        ? ` Bounds expanded ${expansions}× (${expansionLog.join('; ')}).`
+                        : '';
+                    summaryEl.textContent = `Intersect viewing angle: ${best.score.toFixed(1)}° (window [${best.intersectMin.toFixed(1)}°, ${best.intersectMax.toFixed(1)}°]). Worst spot RMS ${spotStr}. Scale curve (d_sep→angle): ${curve}.${expansionNote}`;
                     paramsEl.textContent = `Ratios — r₁=${best.r1.toFixed(3)} · r₂=${best.r2.toFixed(3)} · r_a=${best.ra.toFixed(3)}    |    Absolute — f₁=${f1r} mm · f₂=${f2r} mm · d_sep=${dsepr} mm · a=${ar} mm · D=${best.p.D.toFixed(1)} mm`;
                 };
 
@@ -3038,24 +3111,39 @@
                     // Grazing angles to right and left aperture edges.
                     const grazingR = Math.atan2(apHalf - ledX, verticalDistance) * 180 / Math.PI;
                     const grazingL = Math.atan2(-apHalf - ledX, verticalDistance) * 180 / Math.PI;
-                    // Narrow fan: 3 rays each side, 0.5° to 1.5° outside grazing.
-                    const angles = [];
-                    for (let i = 0; i < 3; i++) {
-                        angles.push(grazingR + 0.5 + i * 0.5);
-                        angles.push(grazingL - 0.5 - i * 0.5);
-                    }
-                    const escaped = [];
-                    for (const angleDeg of angles) {
-                        const theta = angleDeg * Math.PI / 180;
-                        const dx = Math.sin(theta);
-                        const dy = Math.cos(theta);
-                        const result = traceRay(ledX, objY, dx, dy, p);
-                        if (result.escaped && result.exitDir) {
-                            escaped.push({ point: result.exitPoint, dir: result.exitDir });
+                    // Adaptive fan: start narrow (1°), widen on failure. High-r_a
+                    // configs need wider bundles to produce a stable convergence
+                    // because the grazing rays themselves carry significant
+                    // aberration. We keep widening until ≥4 rays escape and form
+                    // a convergent image, or give up at ±10° spread.
+                    const fanAttempts = [
+                        { offset: 0.5, step: 0.5, count: 3 },   // 0.5°,1.0°,1.5° outside grazing — narrow
+                        { offset: 0.5, step: 1.0, count: 5 },   // 0.5° to 4.5° — medium
+                        { offset: 1.0, step: 2.0, count: 6 },   // 1° to 11° — wide
+                    ];
+                    for (const fan of fanAttempts) {
+                        const angles = [];
+                        for (let i = 0; i < fan.count; i++) {
+                            angles.push(grazingR + fan.offset + i * fan.step);
+                            angles.push(grazingL - fan.offset - i * fan.step);
+                        }
+                        const escaped = [];
+                        for (const angleDeg of angles) {
+                            if (Math.abs(angleDeg) >= 89) continue;
+                            const theta = angleDeg * Math.PI / 180;
+                            const dx = Math.sin(theta);
+                            const dy = Math.cos(theta);
+                            const result = traceRay(ledX, objY, dx, dy, p);
+                            if (result.escaped && result.exitDir) {
+                                escaped.push({ point: result.exitPoint, dir: result.exitDir });
+                            }
+                        }
+                        if (escaped.length >= 4) {
+                            const conv = findConvergence(escaped);
+                            if (conv && Number.isFinite(conv[0]) && Number.isFinite(conv[1])) return conv;
                         }
                     }
-                    if (escaped.length < 2) return null;
-                    return findConvergence(escaped);
+                    return null;
                 };
 
                 // Reversibility validator: time-reversal symmetry says every escaped
