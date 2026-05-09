@@ -1280,6 +1280,142 @@
             margin-right: var(--space-xs);
         }
 
+        /* ───────────────────────────────────────────────────────────
+           ROADMAP — research checklist of phases.
+
+           One <details> per phase (so phases can be collapsed/expanded
+           individually — readers can scan the headers, then expand
+           what they care about). Each phase contains a flat list of
+           items with status icons (✓ done, ◐ in progress, ☐ todo,
+           ? open question, — skipped/N/A).
+
+           Single-column flow (not a grid) so phases read sequentially
+           and each can be any length without affecting the others.
+           Same token system as everywhere else; dark-mode inherits.
+           ─────────────────────────────────────────────────────────── */
+        .roadmap-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+            margin-top: var(--space-lg);
+        }
+        .roadmap-phase {
+            background: var(--color-bg-surface);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--color-border-subtle);
+            overflow: hidden;
+        }
+        .roadmap-phase__head::-webkit-details-marker { display: none; }
+        .roadmap-phase__head {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: var(--space-sm) var(--space-md);
+            cursor: pointer;
+            user-select: none;
+            flex-wrap: wrap;
+        }
+        .roadmap-phase__head:hover {
+            background: color-mix(in srgb, var(--color-text-primary) 4%, transparent);
+        }
+        .roadmap-phase__head:focus-visible {
+            outline: 2px solid var(--color-accent);
+            outline-offset: -2px;
+        }
+        .roadmap-phase__num {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: var(--weight-bold);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--color-text-tertiary);
+            white-space: nowrap;
+        }
+        .roadmap-phase__title {
+            flex: 1;
+            min-width: 0;
+            font-size: var(--text-base, 1rem);
+            font-weight: var(--weight-semibold);
+            color: var(--color-text-primary);
+            line-height: 1.4;
+        }
+        .roadmap-phase__status {
+            padding: 0.15rem 0.5rem;
+            border-radius: var(--radius-sm);
+            background: var(--color-bg-primary);
+            border: 1px solid var(--color-border-subtle);
+            font-size: 0.75rem;
+            font-weight: var(--weight-bold);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--color-text-secondary);
+            white-space: nowrap;
+        }
+        .roadmap-phase__status--done   { color: var(--color-accent); border-color: color-mix(in srgb, var(--color-accent) 40%, transparent); }
+        .roadmap-phase__status--wip    { color: #E0A33B; border-color: color-mix(in srgb, #E0A33B 40%, transparent); }
+        .roadmap-phase__status--open   { color: var(--color-text-tertiary); }
+        .roadmap-phase__count {
+            font-family: var(--font-mono);
+            font-size: 0.8125rem;
+            color: var(--color-text-tertiary);
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+        .roadmap-phase__chevron {
+            margin-left: auto;
+            width: 0.875rem;
+            height: 0.875rem;
+            color: var(--color-text-tertiary);
+            transition: transform var(--transition-base);
+            flex-shrink: 0;
+        }
+        .roadmap-phase[open] > .roadmap-phase__head .roadmap-phase__chevron {
+            transform: rotate(90deg);
+        }
+        .roadmap-checklist {
+            list-style: none;
+            margin: 0;
+            padding: 0 var(--space-md) var(--space-md);
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xs);
+            border-top: 1px solid var(--color-border-subtle);
+            padding-top: var(--space-sm);
+        }
+        .roadmap-checklist__item {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-sm);
+            font-size: 0.9375rem;
+            line-height: 1.55;
+            color: var(--color-text-secondary);
+        }
+        .roadmap-checklist__icon {
+            flex-shrink: 0;
+            width: 1.25rem;
+            height: 1.5rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-weight: var(--weight-bold);
+            font-size: 0.875rem;
+            line-height: 1;
+            color: var(--color-text-tertiary);
+        }
+        .roadmap-checklist__item--done .roadmap-checklist__icon  { color: var(--color-accent); }
+        .roadmap-checklist__item--wip  .roadmap-checklist__icon  { color: #E0A33B; }
+        .roadmap-checklist__item--open .roadmap-checklist__icon  { color: #6B8AFE; }
+        .roadmap-checklist__item--skip .roadmap-checklist__icon  { color: var(--color-text-tertiary); }
+        .roadmap-checklist__item code {
+            font-family: var(--font-mono);
+            font-size: 0.9em;
+            padding: 0.05em 0.3em;
+            border-radius: var(--radius-sm);
+            background: var(--color-bg-primary);
+        }
+
         @media (min-width: 48em) {
             :root { --container-padding: var(--space-lg); }
         }
@@ -1998,6 +2134,145 @@
                             <p>Adds a Nelder-Mead simplex over <code>(f₁, f₂, d_sep, a)</code> that holds the user's object fixed and searches for the geometry that maximizes viewing angle. Reuses <code>traceRay</code> / <code>findConvergence</code> in a DOM-free evaluator so the optimizer and the displayed simulator share physics.</p>
                             <p class="changelog-item__why">Establishes the inverse-design pattern: user defines what they want to image, sim works backward to the device. First implementation had the wrong objective and a too-narrow search space — superseded by the rewrite below — but proved the architecture: the trace engine and the optimizer can share one source of truth.</p>
                         </div>
+                    </details>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- ===========================================
+             ROADMAP — research checklist
+             Each <details> is one phase. Click to expand to see
+             the items in that phase. Items use status icons:
+             ✓ done · ◐ in progress · ☐ todo · ? open question · — skip.
+             To add a phase: copy a <details>. To add an item: copy
+             a <li> in the .roadmap-checklist with the appropriate
+             status modifier class.
+             =========================================== -->
+        <section class="section" id="roadmap" aria-labelledby="roadmap-title">
+            <div class="container">
+                <div class="section__inner">
+                    <p class="section__eyebrow">Roadmap</p>
+                    <h2 id="roadmap-title" class="section__title">Where we've been and <span class="gradient-text">where we're going</span>.</h2>
+                </div>
+
+                <div class="roadmap-list">
+
+                    <details class="roadmap-phase" open>
+                        <summary class="roadmap-phase__head">
+                            <span class="roadmap-phase__num">Phase 1</span>
+                            <span class="roadmap-phase__title">Validation &amp; foundations</span>
+                            <span class="roadmap-phase__status roadmap-phase__status--done">complete</span>
+                            <span class="roadmap-phase__count">6 / 6</span>
+                            <svg class="roadmap-phase__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <ul class="roadmap-checklist">
+                            <li class="roadmap-checklist__item roadmap-checklist__item--done"><span class="roadmap-checklist__icon">✓</span><span>5 independent KATs verify trace correctness — Reversibility, Formula, Paraxial, Cross-Check, Viewing Angle. All pass at machine precision.</span></li>
+                            <li class="roadmap-checklist__item roadmap-checklist__item--done"><span class="roadmap-checklist__icon">✓</span><span>Empirical alignment with Adhya &amp; Noé 2007 at canonical f₁=f₂=d_sep=80 mm: image height within <code>1.3%</code>, magnification within <code>3%</code>.</span></li>
+                            <li class="roadmap-checklist__item roadmap-checklist__item--done"><span class="roadmap-checklist__icon">✓</span><span>Trace cross-checked against second independent implementation (analytical-quadratic + vector reflection vs. marching + rotation-matrix). Agreement at <code>10⁻¹³ mm</code>.</span></li>
+                            <li class="roadmap-checklist__item roadmap-checklist__item--done"><span class="roadmap-checklist__icon">✓</span><span>Self-expanding optimizer bounds — silent truncation eliminated.</span></li>
+                            <li class="roadmap-checklist__item roadmap-checklist__item--done"><span class="roadmap-checklist__icon">✓</span><span>Spot cap derived from physics: <code>viewing_distance × sharpness_arcmin × eye_resolution</code>. No remaining tuning fudge factor in pipeline.</span></li>
+                            <li class="roadmap-checklist__item roadmap-checklist__item--done"><span class="roadmap-checklist__icon">✓</span><span>Symmetric and asymmetric optimization modes both supported.</span></li>
+                        </ul>
+                    </details>
+
+                    <details class="roadmap-phase">
+                        <summary class="roadmap-phase__head">
+                            <span class="roadmap-phase__num">Phase 2</span>
+                            <span class="roadmap-phase__title">Findings (parabolic family)</span>
+                            <span class="roadmap-phase__status roadmap-phase__status--done">documented</span>
+                            <span class="roadmap-phase__count">6 / 6</span>
+                            <svg class="roadmap-phase__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <ul class="roadmap-checklist">
+                            <li class="roadmap-checklist__item roadmap-checklist__item--done"><span class="roadmap-checklist__icon">✓</span><span>Asymmetric mirascope (f₁ ≠ f₂) is feasible. Optimum approaches canonical (within ~10%) under tight sharpness; more asymmetric under loose sharpness.</span></li>
+                            <li class="roadmap-checklist__item roadmap-checklist__item--done"><span class="roadmap-checklist__icon">✓</span><span>No single "best mirascope." Optimum geometry depends entirely on sharpness target — there's a continuum, not a point.</span></li>
+                            <li class="roadmap-checklist__item roadmap-checklist__item--done"><span class="roadmap-checklist__icon">✓</span><span>Asymmetric mirascopes can produce magnifications canonical cannot — including unity (no enlargement) and de-magnification.</span></li>
+                            <li class="roadmap-checklist__item roadmap-checklist__item--done"><span class="roadmap-checklist__icon">✓</span><span>Aperture ratio depends on operating regime: <code>0.04</code> (research-grade), <code>0.18-0.35</code> (consumer), <code>0.45</code> (Adhya-Noé toy).</span></li>
+                            <li class="roadmap-checklist__item roadmap-checklist__item--done"><span class="roadmap-checklist__icon">✓</span><span>Image quality (spot RMS) is the binding constraint at most operating points. Loosening it shrinks required device size roughly linearly.</span></li>
+                            <li class="roadmap-checklist__item roadmap-checklist__item--done"><span class="roadmap-checklist__icon">✓</span><span>Asymmetric optima are <em>knife-edge sensitive</em> to manufacturing precision; symmetric optima have substantial margin.</span></li>
+                        </ul>
+                    </details>
+
+                    <details class="roadmap-phase">
+                        <summary class="roadmap-phase__head">
+                            <span class="roadmap-phase__num">Phase 3</span>
+                            <span class="roadmap-phase__title">Path geometry — multi-bounce, aperture variants</span>
+                            <span class="roadmap-phase__status">not started</span>
+                            <span class="roadmap-phase__count">0 / 4</span>
+                            <svg class="roadmap-phase__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <ul class="roadmap-checklist">
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>4-bounce paths — Adhya &amp; Noé describe secondary images at d_sep ≠ f. Test with our trace.</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>6-bounce and 8-bounce paths — increasingly distorted secondary images per the paper.</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Off-center aperture positions — does shifted aperture trade viewing angle for image position?</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Slot or annular aperture shapes — non-circular openings.</span></li>
+                        </ul>
+                    </details>
+
+                    <details class="roadmap-phase">
+                        <summary class="roadmap-phase__head">
+                            <span class="roadmap-phase__num">Phase 4</span>
+                            <span class="roadmap-phase__title">Mirror configuration variants</span>
+                            <span class="roadmap-phase__status">not started</span>
+                            <span class="roadmap-phase__count">0 / 5</span>
+                            <svg class="roadmap-phase__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <ul class="roadmap-checklist">
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Tilted mirror axes — mirrors angled toward each other (V-shape).</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Lateral offset — top mirror shifted off-axis from bottom.</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Hybrid: one flat, one parabolic.</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Unequal mirror diameters — top and bottom different sizes.</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Sensitivity analysis — quantify how ±1% / ±5% manufacturing tolerance shifts viewing angle for the asymmetric optimum.</span></li>
+                        </ul>
+                    </details>
+
+                    <details class="roadmap-phase">
+                        <summary class="roadmap-phase__head">
+                            <span class="roadmap-phase__num">Phase 5</span>
+                            <span class="roadmap-phase__title">Non-parabolic shapes</span>
+                            <span class="roadmap-phase__status">requires new sim</span>
+                            <span class="roadmap-phase__count">0 / 4</span>
+                            <svg class="roadmap-phase__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <ul class="roadmap-checklist">
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Spherical mirrors — manufacturable, easier to machine. How much performance is lost?</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Elliptical mirrors — different conic section.</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Freeform surface — control points, optimizer finds shape directly.</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Composite surface — parabolic center, different curve at rim.</span></li>
+                        </ul>
+                    </details>
+
+                    <details class="roadmap-phase">
+                        <summary class="roadmap-phase__head">
+                            <span class="roadmap-phase__num">Bench</span>
+                            <span class="roadmap-phase__title">Empirical validation (out of software scope)</span>
+                            <span class="roadmap-phase__status">not started</span>
+                            <span class="roadmap-phase__count">0 / 3</span>
+                            <svg class="roadmap-phase__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <ul class="roadmap-checklist">
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Cross-check against established 3D ray tracer (Optiland or Zemax) at one specific geometry. Closes the 2D-vs-3D question for cylindrical objects.</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Build one prototype based on the symmetric optimizer recommendation. Measure actual image position, magnification, viewing angle. Compare to predictions.</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Build asymmetric prototype as control — confirm or refute the "knife-edge manufacturing sensitivity" finding from Phase 2.</span></li>
+                        </ul>
+                    </details>
+
+                    <details class="roadmap-phase">
+                        <summary class="roadmap-phase__head">
+                            <span class="roadmap-phase__num">Open</span>
+                            <span class="roadmap-phase__title">Open questions worth investigating</span>
+                            <span class="roadmap-phase__status">5 questions</span>
+                            <span class="roadmap-phase__count">—</span>
+                            <svg class="roadmap-phase__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <ul class="roadmap-checklist">
+                            <li class="roadmap-checklist__item roadmap-checklist__item--open"><span class="roadmap-checklist__icon">?</span><span>Does the optimum aperture ratio truly vary monotonically with sharpness target across the full 1-60 arcmin range, or are there regime breaks?</span></li>
+                            <li class="roadmap-checklist__item roadmap-checklist__item--open"><span class="roadmap-checklist__icon">?</span><span>What's the absolute maximum intersect viewing angle achievable in any parabolic configuration, regardless of object size or sharpness?</span></li>
+                            <li class="roadmap-checklist__item roadmap-checklist__item--open"><span class="roadmap-checklist__icon">?</span><span>Do non-parabolic shapes (spherical, elliptical, freeform) preserve the asymmetry-helps-loose-sharpness pattern we observe?</span></li>
+                            <li class="roadmap-checklist__item roadmap-checklist__item--open"><span class="roadmap-checklist__icon">?</span><span>Is there a closed-form solution for asymmetric mirascope's "muscular pig" magnification at h_obj &gt; 0?</span></li>
+                            <li class="roadmap-checklist__item roadmap-checklist__item--open"><span class="roadmap-checklist__icon">?</span><span>At what manufacturing tolerance does the asymmetric advantage disappear into noise?</span></li>
+                        </ul>
                     </details>
 
                 </div>
