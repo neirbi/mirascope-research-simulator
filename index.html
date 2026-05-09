@@ -1769,6 +1769,19 @@
                     <details class="changelog-item" name="changelog">
                         <summary class="changelog-item__head">
                             <time class="changelog-item__date" datetime="2026-05-09">2026-05-09</time>
+                            <span class="changelog-item__tag changelog-item__tag--fix">fix</span>
+                            <span class="changelog-item__title">Sharpness target: 5 arcmin (consumer-grade), not 1 arcmin (lab-grade).</span>
+                            <svg class="changelog-item__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <div class="changelog-item__body">
+                            <p>Lowered the default sharpness target from 1 arcmin to 5 arcmin. Spot cap is now <code>viewing_distance × 5 × (1 arcmin in radians)</code>. At 500 mm viewing: spot cap goes from 145 µm to 727 µm. At 1 m: 1.45 mm. At 3 m: 4.4 mm.</p>
+                            <p class="changelog-item__why">1 arcmin is the eye's resolution threshold under ideal lab conditions — "no perceptible blur whatsoever." Almost no consumer optic targets this. Real-world toys (including the user's homemade reference and the Adhya-Noé published toy) operate at 5–30 arcmin: visibly soft if you scrutinize, but recognizable and sharp-feeling under normal viewing. With 1 arcmin as the default, the optimizer was returning "no feasible geometry up to 19,440 mm" for a 50 mm object at 500 mm viewing — the criterion was unsatisfiable, not the device. 5 arcmin matches what real-world mirascopes achieve and gives buildable answers.</p>
+                        </div>
+                    </details>
+
+                    <details class="changelog-item" name="changelog">
+                        <summary class="changelog-item__head">
+                            <time class="changelog-item__date" datetime="2026-05-09">2026-05-09</time>
                             <span class="changelog-item__tag changelog-item__tag--break">rewrite</span>
                             <span class="changelog-item__title">Spot cap derived from viewing distance, not "5% of object."</span>
                             <svg class="changelog-item__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
@@ -2702,20 +2715,26 @@
                 // otherwise returns { score, intersectWidth, ... } where
                 // score is intersect viewing angle width in degrees.
                 //
-                // Spot-RMS cap is now physics-derived from viewing distance:
-                // the human eye resolves angular blurs down to ~1 arcminute
-                // (≈ 0.000291 rad) at high contrast. So a spot RMS smaller
-                // than viewing_distance × 0.000291 is below the eye's
-                // resolution threshold at that distance — perceptually
-                // sharp. Replaces the prior arbitrary "5% of object Ø"
-                // heuristic with a single application-grounded criterion.
+                // Spot-RMS cap is now physics-derived from viewing distance.
+                // The human eye resolves ~1 arcminute in lab-perfect
+                // conditions, but consumer optics (toys, displays, casual
+                // viewing) target ~5 arcminutes — that's "looks sharp to a
+                // normal viewer" rather than "physically indistinguishable
+                // from perfect." Real-world ambient lighting, brain
+                // tolerance for slight blur, and lower contrast all push
+                // the practical threshold ~5× looser than the strict eye
+                // threshold.
                 //
-                // For viewing distance 500 mm (typical desk): spot cap ≈
-                // 0.145 mm. For 1 m: 0.291 mm. For 3 m (museum/display):
-                // 0.873 mm.
+                // Using 5 arcmin as the default sharpness target gives
+                // buildable devices that match real-world mirascope toys.
+                // Lab-grade can be reproduced by editing the constant.
+                //
+                // For viewing distance 500 mm: 5 arcmin → spot cap ~727 µm.
+                // For viewing distance 1 m: ~1.45 mm. For 3 m: ~4.4 mm.
                 const ESCAPE_FRAC_MIN = 0.5;
-                const EYE_ARCMIN_RAD = 1 / 60 * Math.PI / 180; // 1 arcmin = 0.000291 rad
-                const spotLimitForViewing = (viewDist) => Math.max(0.05, viewDist * EYE_ARCMIN_RAD);
+                const SHARPNESS_ARCMIN = 5; // consumer-grade target
+                const ARCMIN_RAD = (1 / 60) * (Math.PI / 180);
+                const spotLimitForViewing = (viewDist) => Math.max(0.05, viewDist * SHARPNESS_ARCMIN * ARCMIN_RAD);
                 const scoreCandidate = (r1, r2, ra, dsep, h_obj, obj_d, nbounces, nrays, viewDist) => {
                     const p = paramsFromRatios(r1, r2, ra, dsep, h_obj, obj_d, nbounces);
                     if (!p) return null;
@@ -3016,7 +3035,7 @@
                         ? ` Bounds expanded ${expansions}× (${expansionLog.join('; ')}).`
                         : '';
                     const capStr = spotCapDerived < 1 ? `${(spotCapDerived * 1000).toFixed(0)} µm` : `${spotCapDerived.toFixed(2)} mm`;
-                    summaryEl.textContent = `Intersect viewing angle: ${best.score.toFixed(1)}° (window [${best.intersectMin.toFixed(1)}°, ${best.intersectMax.toFixed(1)}°]). Worst spot RMS ${spotStr} (cap ${capStr} from viewing distance ${viewDist} mm × eye 1 arcmin). Scale curve (d_sep→angle): ${curve}.${expansionNote}`;
+                    summaryEl.textContent = `Intersect viewing angle: ${best.score.toFixed(1)}° (window [${best.intersectMin.toFixed(1)}°, ${best.intersectMax.toFixed(1)}°]). Worst spot RMS ${spotStr} (cap ${capStr} from viewing distance ${viewDist} mm × ${SHARPNESS_ARCMIN} arcmin sharpness target). Scale curve (d_sep→angle): ${curve}.${expansionNote}`;
                     paramsEl.textContent = `Ratios — r₁=${best.r1.toFixed(3)} · r₂=${best.r2.toFixed(3)} · r_a=${best.ra.toFixed(3)}    |    Absolute — f₁=${f1r} mm · f₂=${f2r} mm · d_sep=${dsepr} mm · a=${ar} mm · D=${best.p.D.toFixed(1)} mm`;
                 };
 
