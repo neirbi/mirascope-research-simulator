@@ -2447,12 +2447,12 @@
 
                     <article class="finding">
                         <svg class="finding__icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <ellipse cx="16" cy="25" rx="11" ry="2.5"/>
-                            <circle cx="16" cy="9" r="3.5"/>
-                            <line x1="16" y1="12.5" x2="16" y2="22.5" stroke-dasharray="2 2"/>
+                            <path d="M 4 24 Q 16 14 28 24"/>
+                            <path d="M 4 8 Q 16 18 28 8"/>
+                            <circle cx="16" cy="16" r="2" fill="currentColor" stroke="none"/>
                         </svg>
-                        <h3 class="finding__title">The image is anchored to the device.</h3>
-                        <p class="finding__body">The mirascope's floating image cannot be moved away from the device. Its location is fixed by the mirror geometry, typically just above the aperture plane. A clear stand can hide the connection, but the device and the image are bound together by physics, not by mechanics.</p>
+                        <h3 class="finding__title">The image forms where the two focal points meet.</h3>
+                        <p class="finding__body">Each parabolic mirror has its own focal point, and the mirascope only works because the two are made to coincide. The image cannot be moved higher or lower without redesigning the mirrors. The location is forced by the geometry, not chosen.</p>
                     </article>
 
                     <article class="finding">
@@ -2463,17 +2463,27 @@
                             <line x1="26" y1="26" x2="18" y2="18"/>
                             <circle cx="16" cy="16" r="2"/>
                         </svg>
-                        <h3 class="finding__title">The image is light meeting at a point, not a hovering object.</h3>
-                        <p class="finding__body">What looks like a floating object is real light rays meeting at a single point in space. The eye, or a camera focused there, reads the diverging rays as coming from that point. There is no source at that location; the image is built moment by moment by the rays themselves.</p>
+                        <h3 class="finding__title">The image is converging light, not an object.</h3>
+                        <p class="finding__body">What looks like a floating object is light rays meeting at a point in space. Your eyes read the convergence as a source, but nothing is there. The image is the meeting of the rays themselves.</p>
                     </article>
 
                     <article class="finding">
                         <svg class="finding__icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <circle cx="13" cy="16" r="8"/>
-                            <circle cx="22" cy="16" r="5" fill="currentColor" stroke="none"/>
+                            <circle cx="16" cy="16" r="10"/>
+                            <circle cx="20" cy="13" r="2.5" fill="currentColor" stroke="none"/>
                         </svg>
-                        <h3 class="finding__title">An object in the optical path blocks the image from forming.</h3>
-                        <p class="finding__body">A small sticker placed in the path of the parallel light rays blocks them before they reach the convergence point. The real image does not form over the sticker. The rays that were supposed to converge have been absorbed instead, proving the image is built from rays in transit, not from a source at the apparent location.</p>
+                        <h3 class="finding__title">Blocking the rays cuts a hole in the image.</h3>
+                        <p class="finding__body">A sticker on the mirror absorbs rays at that spot before they converge. The rest of the image still forms, but a hole appears exactly where the rays were taken out, like a bullet cut through the 3D image.</p>
+                    </article>
+
+                    <article class="finding">
+                        <svg class="finding__icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M 4 16 Q 16 8 28 16 Q 16 24 4 16 Z"/>
+                            <circle cx="16" cy="16" r="3.5"/>
+                            <circle cx="16" cy="16" r="1" fill="currentColor" stroke="none"/>
+                        </svg>
+                        <h3 class="finding__title">The image resolves more cleanly with one eye.</h3>
+                        <p class="finding__body">With one eye, binocular depth cues vanish and you can lock onto a single focal plane. You can choose to see the object on the lower mirror or the real image above the aperture. With both eyes your brain tries to triangulate rays that do not behave like a normal object.</p>
                     </article>
 
                     <article class="finding">
@@ -2485,8 +2495,8 @@
                             <polyline points="13.5 25.5 16 28 18.5 25.5"/>
                             <circle cx="16" cy="20" r="1.5" fill="currentColor" stroke="none"/>
                         </svg>
-                        <h3 class="finding__title">Light directed at the image traces back to the actual source.</h3>
-                        <p class="finding__body">A laser aimed at the apparent image position travels through the mirror system in reverse, by optical reversibility, and converges on the real object inside the device. What looks like the laser striking the floating image is actually the laser lighting up the real object through the inverted path. The floating image has nothing material to scatter light from.</p>
+                        <h3 class="finding__title">Light aimed at the image lands on the real object.</h3>
+                        <p class="finding__body">A laser pointed at the image position travels the mirror path in reverse and strikes the actual object inside the device. The image has nothing to reflect off, so the light passes through and finds the source.</p>
                     </article>
 
                     <article class="finding">
@@ -2495,8 +2505,8 @@
                             <path d="M 4 26 L 12 18 L 14 20 L 8 28 Z"/>
                             <line x1="14" y1="20" x2="20" y2="14" stroke-dasharray="2 2"/>
                         </svg>
-                        <h3 class="finding__title">You cannot touch the image, only block the rays.</h3>
-                        <p class="finding__body">A finger reaching toward the floating image enters the region where the converging rays are still in flight. Your eye stays focused on that region, so the brain blends the finger and any remaining image fragments into one percept that feels like contact. But the image is light, not matter; your finger is blocking the rays that would have built the image.</p>
+                        <h3 class="finding__title">You cannot touch the image, only interrupt it.</h3>
+                        <p class="finding__body">A finger reaching into the image enters the rays mid-flight. Your eye stays focused there, so your brain merges the finger with the remaining light into something that feels like contact. The image is light, and the finger is just blocking it.</p>
                     </article>
 
                 </div>
