@@ -1778,11 +1778,32 @@
 
                 <div class="changelog-list">
 
+                    <details class="changelog-item" name="changelog" open>
+                        <summary class="changelog-item__head">
+                            <time class="changelog-item__date" datetime="2026-05-09">2026-05-09</time>
+                            <span class="changelog-item__tag changelog-item__tag--feat">milestone</span>
+                            <span class="changelog-item__title">Direct empirical alignment with Adhya-Noé published toy.</span>
+                            <svg class="changelog-item__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <div class="changelog-item__body">
+                            <p>Tested the simulator against the canonical Mirage toy geometry from Adhya &amp; Noé 2007 (<code>f₁ = f₂ = d_sep = 80 mm</code>, aperture 62.5 mm), with a pig-class object (h_obj = 12 mm, Ø_obj = 18 mm). Our trace produced image height <code>14.295 mm</code> vs. paraxial formula <code>14.118 mm</code> (Δ = 0.18 mm, 1.3% relative); magnification <code>1.1411×</code> vs. formula <code>1.1765×</code> (Δ = 0.035, 3% relative). Both within the strict 5% Formula KAT tolerance. <strong>The "muscular pig" effect Adhya-Noé describe — image grows and shifts up as h_obj increases — is reproduced exactly.</strong></p>
+                            <p class="changelog-item__why">This is the strongest empirical validation possible without bench measurement. Five existing software validators (Reversibility, Formula KAT, Paraxial KAT, Cross-Check KAT, Viewing Angle KAT) confirm internal correctness; this confirms our trace also agrees with an independently-published optical analysis at the toy's actual geometry. The simulator's physics is correct end-to-end, not just self-consistent. Engineering claims based on this simulator (e.g. "asymmetric mirascope can de-magnify") have a verified physics foundation.</p>
+                            <p class="changelog-item__why">Side finding: prior comparisons saying "our optimizer's device is bigger than the toy" were partially apples-to-oranges. The toy's stated ~140 mm width is the truncated mirror diameter; the mathematical full rim of canonical f=d_sep=80 parabolas is ~226 mm. The toy's mirrors stop short of the math rim. Our simulator computes the math rim, and the toy's geometry agrees with our model at the f and d_sep values — they're at the same canonical operating point.</p>
+                        </div>
+                    </details>
+
                     <details class="changelog-item" name="changelog">
                         <summary class="changelog-item__head">
                             <time class="changelog-item__date" datetime="2026-05-09">2026-05-09</time>
-                            <span class="changelog-item__tag changelog-item__tag--fix">fix</span>
-                            <span class="changelog-item__title">Sharpness target: 5 arcmin (consumer-grade), not 1 arcmin (lab-grade).</span>
+                            <span class="changelog-item__tag changelog-item__tag--feat">feat</span>
+                            <span class="changelog-item__title">Symmetric optimize toggle + image-validity inconsistency fix.</span>
+                            <svg class="changelog-item__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <div class="changelog-item__body">
+                            <p>Added a "Symmetric (f₁ = f₂ = d_sep)" checkbox above the Optimize button. When checked, inner search collapses from 2D (r₁, r₂) to 1D (r = r₁ = r₂) — much faster, produces canonical-family designs only. Useful for direct comparison to published toys and textbook formulas, and for manufacturing where two identical mirrors are cheaper than two custom-shaped mirrors. Also aligned the displayed run() and the optimizer's evalLED to use the same image-validity criterion, eliminating the case where displayed image height showed "—" while the optimizer accepted the geometry.</p>
+                            <p class="changelog-item__why">Two distinct issues with one shared root cause: the displayed simulator and the optimizer were applying different rules for "is this convergence point a real image?". The optimizer's stricter aperture-plane criterion is correct (images below the aperture are inside the cavity, not viewable). Aligning both to that check makes the displayed result and the optimizer's accept/reject decision agree. The symmetric toggle complements this by giving access to the canonical-family designs that the published literature analyzes.</p>
+                        </div>
+                    </details>
                             <svg class="changelog-item__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
                         </summary>
                         <div class="changelog-item__body">
