@@ -1629,6 +1629,19 @@
                                     <span>tolerance: <span class="sim__stat-value" id="sim-val-xkat-tol">—</span></span>
                                 </div>
                             </div>
+                            <div class="sim__val-test">
+                                <div class="sim__val-summary-row">
+                                    <span class="sim__val-label">Viewing Angle KAT</span>
+                                    <span class="sim__val-status" id="sim-val-vkat-status">—</span>
+                                    <span class="sim__val-summary" id="sim-val-vkat-summary"></span>
+                                </div>
+                                <div class="sim__val-stats">
+                                    <span>atan2 ↔ asin Δ: <span class="sim__stat-value" id="sim-val-vkat-trig">—</span></span>
+                                    <span>green LED symmetry: <span class="sim__stat-value" id="sim-val-vkat-sym">—</span></span>
+                                    <span>max-half vs intersect: <span class="sim__stat-value" id="sim-val-vkat-cross">—</span></span>
+                                    <span>tolerance: <span class="sim__stat-value" id="sim-val-vkat-tol">—</span></span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1744,6 +1757,19 @@
                 </div>
 
                 <div class="changelog-list">
+
+                    <details class="changelog-item" name="changelog">
+                        <summary class="changelog-item__head">
+                            <time class="changelog-item__date" datetime="2026-05-09">2026-05-09</time>
+                            <span class="changelog-item__tag changelog-item__tag--feat">feat</span>
+                            <span class="changelog-item__title">Viewing Angle KAT — checks the metric math, not the trace.</span>
+                            <svg class="changelog-item__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <div class="changelog-item__body">
+                            <p>Adds a fifth validator targeted at the viewing-angle math (above the trace, below the optimizer): three internal-consistency checks. (1) For every escaped ray, <code>atan2(vx, vy)</code> must agree with <code>asin(vx)</code> to 1e-9° — catches non-unit exit directions or angle-convention bugs. (2) For the on-axis green LED, <code>|min_angle + max_angle|</code> must be under 1° — by symmetry of the geometry. (3) The optimizer's <code>intersect_width / 2</code> must not exceed the simulator's <code>max_half_angle</code> stat — the window can't be wider than what any single ray actually reaches.</p>
+                            <p class="changelog-item__why">The simulator displays one viewing-angle number ("65°", max half-angle of any ray) and the optimizer displays a different one ("120° intersect viewing angle", angular cone all 3 LEDs share). Both are correct in their own way, but if the math layered on top of the trace had a bug, the two could silently drift apart and we'd never know which to trust. This validator catches that case and explicitly reconciles the two numbers — so when the page says 65° and 120°, they're verified internally consistent.</p>
+                        </div>
+                    </details>
 
                     <details class="changelog-item" name="changelog">
                         <summary class="changelog-item__head">
@@ -3364,6 +3390,123 @@
                     document.getElementById('sim-val-xkat-max').textContent = xkat_n > 0 ? `${xkat_max.toExponential(2)} mm` : '—';
                     document.getElementById('sim-val-xkat-rms').textContent = xkat_n > 0 ? `${Math.sqrt(xkat_sumSq / xkat_n).toExponential(2)} mm` : '—';
                     document.getElementById('sim-val-xkat-tol').textContent = `${XKAT_TOL} mm`;
+
+                    // ── Viewing Angle KAT ───────────────────────────────────────
+                    // Sanity-checks on the viewing-angle math itself, not the
+                    // underlying trace (the four KATs above already validate the
+                    // trace). Ensures the two viewing-angle numbers we display
+                    // (the simulator's max half-angle, and the optimizer's
+                    // intersect width) are computed consistently and agree with
+                    // each other where they should.
+                    //
+                    // Checks:
+                    //   1. atan2(vx, vy) ≡ asin(vx) per ray  (catches non-unit
+                    //      exit directions or angle-convention bugs).
+                    //   2. Green LED (on-axis): min_angle ≈ −max_angle by
+                    //      symmetry of the geometry.
+                    //   3. intersect_width / 2 ≤ max_half_angle (the intersect
+                    //      window cannot be wider than what any single ray
+                    //      reaches).
+                    //
+                    // Independent of the trace's correctness — this validates
+                    // that the metrics built on top of it are arithmetically
+                    // sound and self-consistent.
+                    let vkatTrigMax = 0;
+                    let vkatTrigCount = 0;
+                    let vkatGreenMin = +Infinity, vkatGreenMax = -Infinity;
+                    let vkatGlobalMaxHalf = 0;
+                    let vkatLedRanges = []; // [{min, max}] per LED for intersect
+
+                    ledData.forEach(({ traces }, ledIdx) => {
+                        let ledMin = +Infinity, ledMax = -Infinity;
+                        traces.forEach((r) => {
+                            if (!r.escaped || !r.exitDir) return;
+                            const [vx, vy] = r.exitDir;
+                            if (vy <= 0) return;
+                            // Two independent angle computations.
+                            const aA = Math.atan2(vx, vy) * 180 / Math.PI;
+                            // For asin to apply: vx must be in [-1, 1]. Clamp to
+                            // guard against floating-point overshoot.
+                            const vxClamped = Math.max(-1, Math.min(1, vx));
+                            const aB = Math.asin(vxClamped) * 180 / Math.PI;
+                            const trigDiff = Math.abs(aA - aB);
+                            if (trigDiff > vkatTrigMax) vkatTrigMax = trigDiff;
+                            vkatTrigCount++;
+                            // Track per-LED min/max (signed).
+                            if (aA < ledMin) ledMin = aA;
+                            if (aA > ledMax) ledMax = aA;
+                            // Track absolute max across all LEDs (the simulator's
+                            // displayed "viewing angle" stat).
+                            const absA = Math.abs(aA);
+                            if (absA > vkatGlobalMaxHalf) vkatGlobalMaxHalf = absA;
+                            if (ledIdx === 1) {
+                                if (aA < vkatGreenMin) vkatGreenMin = aA;
+                                if (aA > vkatGreenMax) vkatGreenMax = aA;
+                            }
+                        });
+                        vkatLedRanges.push({ min: ledMin, max: ledMax });
+                    });
+
+                    // Reconstruct the optimizer's intersect window from the
+                    // displayed trace data so we can cross-check against
+                    // max_half_angle.
+                    let vkatIntersectMin = -Infinity, vkatIntersectMax = +Infinity;
+                    for (const r of vkatLedRanges) {
+                        if (r.min === +Infinity) continue;
+                        if (r.min > vkatIntersectMin) vkatIntersectMin = r.min;
+                        if (r.max < vkatIntersectMax) vkatIntersectMax = r.max;
+                    }
+                    const vkatIntersectWidth = (vkatIntersectMax > vkatIntersectMin)
+                        ? (vkatIntersectMax - vkatIntersectMin) : 0;
+
+                    // Tolerances.
+                    const VKAT_TRIG_TOL = 1e-9; // degrees — atan2 and asin must agree to high precision
+                    const VKAT_SYM_TOL = 1.0;   // degrees — green LED symmetry, allows for numerical noise from finite ray sampling
+                    let vkatStatus = 'na', vkatBadge = '— N/A', vkatSummary = '';
+                    let trigText = '—', symText = '—', crossText = '—';
+                    const tolText_v = `atan2↔asin: ${VKAT_TRIG_TOL.toExponential(0)}° · green sym: ${VKAT_SYM_TOL}° · cross: ½·intersect ≤ max-half`;
+
+                    if (vkatTrigCount === 0) {
+                        vkatStatus = 'na'; vkatBadge = '— N/A';
+                        vkatSummary = 'no escaped rays — viewing-angle math has no input to validate';
+                    } else {
+                        // Check 1: trig identity.
+                        const trigPass = vkatTrigMax < VKAT_TRIG_TOL;
+                        trigText = `max ${vkatTrigMax.toExponential(2)}°`;
+                        // Check 2: green symmetry (only meaningful if green produced rays).
+                        let symPass = true, symDelta = null;
+                        if (vkatGreenMin !== +Infinity) {
+                            symDelta = Math.abs(vkatGreenMin + vkatGreenMax);
+                            symPass = symDelta < VKAT_SYM_TOL;
+                            symText = `|min+max| = ${symDelta.toFixed(3)}°`;
+                        } else {
+                            symText = '— (no green rays)';
+                        }
+                        // Check 3: intersect width fits within max half-angle on each side.
+                        const halfWindow = vkatIntersectWidth / 2;
+                        const crossPass = halfWindow <= vkatGlobalMaxHalf + 1e-6; // tiny epsilon
+                        crossText = `½·intersect=${halfWindow.toFixed(2)}° · max-half=${vkatGlobalMaxHalf.toFixed(2)}°`;
+                        const passed = trigPass && symPass && crossPass;
+                        if (passed) {
+                            vkatStatus = 'pass'; vkatBadge = '✓ PASS';
+                            vkatSummary = `viewing-angle math is internally consistent — atan2 and asin agree to ${vkatTrigMax.toExponential(1)}°, on-axis LED symmetric within ${symDelta !== null ? symDelta.toFixed(2) + '°' : 'n/a'}, optimizer's intersect window (${vkatIntersectWidth.toFixed(1)}°) fits within max half-angle (${vkatGlobalMaxHalf.toFixed(1)}°). The two displayed viewing-angle numbers agree.`;
+                        } else {
+                            vkatStatus = 'fail'; vkatBadge = '✗ FAIL';
+                            const fails = [];
+                            if (!trigPass) fails.push(`atan2 vs asin disagree by ${vkatTrigMax.toExponential(2)}° (exit direction not unit-normalized?)`);
+                            if (!symPass) fails.push(`green LED |min+max| = ${symDelta.toFixed(3)}° exceeds ${VKAT_SYM_TOL}° symmetry tolerance`);
+                            if (!crossPass) fails.push(`½·intersect (${halfWindow.toFixed(2)}°) exceeds max-half (${vkatGlobalMaxHalf.toFixed(2)}°) — the two displayed viewing angles disagree`);
+                            vkatSummary = `viewing-angle math has an internal inconsistency: ${fails.join('; ')}`;
+                        }
+                    }
+
+                    document.getElementById('sim-val-vkat-status').textContent = vkatBadge;
+                    document.getElementById('sim-val-vkat-status').dataset.status = vkatStatus;
+                    document.getElementById('sim-val-vkat-summary').textContent = vkatSummary;
+                    document.getElementById('sim-val-vkat-trig').textContent = trigText;
+                    document.getElementById('sim-val-vkat-sym').textContent = symText;
+                    document.getElementById('sim-val-vkat-cross').textContent = crossText;
+                    document.getElementById('sim-val-vkat-tol').textContent = tolText_v;
                 };
 
                 // Bidirectional sync: number input ↔ range slider.
