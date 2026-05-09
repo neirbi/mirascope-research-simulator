@@ -1189,9 +1189,11 @@
             align-items: center;
             gap: var(--space-sm);
             padding: var(--space-sm) var(--space-md);
+            padding-right: 2.25rem;
             cursor: pointer;
             user-select: none;
             flex-wrap: wrap;
+            position: relative;
         }
         .changelog-item__head:hover {
             background: color-mix(in srgb, var(--color-text-primary) 4%, transparent);
@@ -1230,10 +1232,14 @@
             color: var(--color-text-primary);
             line-height: 1.4;
         }
-        /* Chevron at the end. Rotates when the entry opens. Pure CSS
-           via the [open] state attribute on <details>. */
+        /* Chevron pinned to the right edge of the head row. Position
+           absolute so it stays put regardless of how the date / tag /
+           title wrap on narrow viewports. Rotates when [open]. */
         .changelog-item__chevron {
-            margin-left: auto;
+            position: absolute;
+            right: var(--space-md);
+            top: 50%;
+            transform: translateY(-50%);
             width: 0.875rem;
             height: 0.875rem;
             color: var(--color-text-tertiary);
@@ -1241,7 +1247,7 @@
             flex-shrink: 0;
         }
         .changelog-item[open] > .changelog-item__head .changelog-item__chevron {
-            transform: rotate(90deg);
+            transform: translateY(-50%) rotate(90deg);
         }
         .changelog-item__body {
             display: flex;
@@ -1312,9 +1318,11 @@
             align-items: center;
             gap: var(--space-sm);
             padding: var(--space-sm) var(--space-md);
+            padding-right: 2.25rem;
             cursor: pointer;
             user-select: none;
             flex-wrap: wrap;
+            position: relative;
         }
         .roadmap-phase__head:hover {
             background: color-mix(in srgb, var(--color-text-primary) 4%, transparent);
@@ -1363,7 +1371,10 @@
             white-space: nowrap;
         }
         .roadmap-phase__chevron {
-            margin-left: auto;
+            position: absolute;
+            right: var(--space-md);
+            top: 50%;
+            transform: translateY(-50%);
             width: 0.875rem;
             height: 0.875rem;
             color: var(--color-text-tertiary);
@@ -1371,7 +1382,7 @@
             flex-shrink: 0;
         }
         .roadmap-phase[open] > .roadmap-phase__head .roadmap-phase__chevron {
-            transform: rotate(90deg);
+            transform: translateY(-50%) rotate(90deg);
         }
         .roadmap-checklist {
             list-style: none;
