@@ -1604,6 +1604,18 @@
                                     <span>tolerance: <span class="sim__stat-value" id="sim-val-kat-tol">—</span></span>
                                 </div>
                             </div>
+                            <div class="sim__val-test">
+                                <div class="sim__val-summary-row">
+                                    <span class="sim__val-label">Paraxial KAT</span>
+                                    <span class="sim__val-status" id="sim-val-pkat-status">—</span>
+                                    <span class="sim__val-summary" id="sim-val-pkat-summary"></span>
+                                </div>
+                                <div class="sim__val-stats">
+                                    <span>image height — formula <span class="sim__stat-value" id="sim-val-pkat-h-f">—</span> · measured <span class="sim__stat-value" id="sim-val-pkat-h-m">—</span> · Δ <span class="sim__stat-value" id="sim-val-pkat-h-e">—</span></span>
+                                    <span>magnification — formula <span class="sim__stat-value" id="sim-val-pkat-m-f">—</span> · measured <span class="sim__stat-value" id="sim-val-pkat-m-m">—</span> · Δ <span class="sim__stat-value" id="sim-val-pkat-m-e">—</span></span>
+                                    <span>tolerance: <span class="sim__stat-value" id="sim-val-pkat-tol">—</span></span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1719,6 +1731,19 @@
                 </div>
 
                 <div class="changelog-list">
+
+                    <details class="changelog-item" name="changelog">
+                        <summary class="changelog-item__head">
+                            <time class="changelog-item__date" datetime="2026-05-09">2026-05-09</time>
+                            <span class="changelog-item__tag changelog-item__tag--feat">feat</span>
+                            <span class="changelog-item__title">Paraxial KAT — closes the asymmetric-bug gap.</span>
+                            <svg class="changelog-item__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <div class="changelog-item__body">
+                            <p>Adds a third validator: matrix-formalism paraxial prediction (image height + magnification for any <code>f₁, f₂, d_sep, h_obj</code>) compared against a paraxial-only trace (±2° fan). Runs always, including asymmetric configurations.</p>
+                            <p class="changelog-item__why">Reversibility proves the trace is internally consistent; the existing Formula KAT proves it agrees with textbook formula <em>for the canonical case</em>. That left a theoretical gap: a bug consistent under time-reversal that only manifests when <code>f₁ ≠ f₂</code> would pass both existing tests. The Paraxial KAT closes that gap by exercising the trace under arbitrary asymmetry against an independent analytical oracle (2×2 ray transfer matrices). Three independent tests now bracket the trace from different physics directions.</p>
+                        </div>
+                    </details>
 
                     <details class="changelog-item" name="changelog">
                         <summary class="changelog-item__head">
@@ -2757,6 +2782,70 @@
                     paramsEl.textContent = `Ratios — r₁=${best.r1.toFixed(3)} · r₂=${best.r2.toFixed(3)} · r_a=${best.ra.toFixed(3)}    |    Absolute — f₁=${f1r} mm · f₂=${f2r} mm · d_sep=${dsepr} mm · a=${ar} mm · D=${best.p.D.toFixed(1)} mm`;
                 };
 
+                // ─────────────────────────────────────────────────────────
+                // PARAXIAL PREDICTION via 2×2 ray transfer matrices.
+                //
+                // Treats each parabolic mirror as a thin lens of focal length
+                // f in the unfolded system. For any (f₁, f₂, d_sep, h_obj):
+                //
+                //   M_total = T(d_image) · L(f₁) · T(d_sep) · L(f₂) · T(d_sep − h_obj)
+                //
+                // Imaging condition: B element of M_total = 0. Solve for
+                // d_image. Magnification = A element at the image plane.
+                //
+                // Collapses to image at vy₂ with m = −1 in the canonical case
+                // (f₁=f₂=d_sep, h_obj=0); produces the general answer for
+                // asymmetric mirrors. This is the analytical oracle for the
+                // Paraxial KAT — independent of the trace algorithm, derived
+                // from textbook ray transfer matrices.
+                // ─────────────────────────────────────────────────────────
+                const paraxialPrediction = (f1, f2, dsep, h_obj) => {
+                    if (h_obj >= f1) return null; // object at/beyond focal length
+                    const u = dsep - h_obj;
+                    // L(f₂) ∘ T(u):
+                    const A1 = 1, B1 = u, C1 = -1 / f2, D1 = 1 - u / f2;
+                    // T(d_sep) ∘ above:
+                    const A2 = A1 + dsep * C1;
+                    const B2 = B1 + dsep * D1;
+                    const C2 = C1, D2 = D1;
+                    // L(f₁) ∘ above:
+                    const A3 = A2, B3 = B2;
+                    const C3 = -A2 / f1 + C2;
+                    const D3 = -B2 / f1 + D2;
+                    // Imaging: B₃ + d_image · D₃ = 0
+                    if (Math.abs(D3) < 1e-12) return null; // image at infinity
+                    const d_image = -B3 / D3;
+                    if (d_image <= 0) return null; // virtual image
+                    const mag = A3 + d_image * C3;
+                    // h_image = image y − vy₂ = (vy₁ + d_image) − vy₂ = d_image − dsep
+                    const h_image = d_image - dsep;
+                    return { d_image, h_image, mag };
+                };
+
+                // Run a paraxial-only trace (±2° fan of 7 rays) for the
+                // Paraxial KAT. Wide-angle aberration in asymmetric configs
+                // shifts the centroid of a ±70° fan by a few mm; using
+                // narrow rays isolates trace correctness from aberration so
+                // the comparison against paraxial prediction is meaningful.
+                const paraxialTrace = (ledX, p) => {
+                    const objY = parabolaY(ledX, p.f1, +1, p.vy1) + p.h_obj;
+                    const escaped = [];
+                    const N = 7;
+                    for (let r = 0; r < N; r++) {
+                        const frac = (r + 0.5) / N;
+                        const angleDeg = -2 + 4 * frac; // −2° to +2°
+                        const theta = angleDeg * Math.PI / 180;
+                        const dx = Math.sin(theta);
+                        const dy = Math.cos(theta);
+                        const result = traceRay(ledX, objY, dx, dy, p);
+                        if (result.escaped && result.exitDir) {
+                            escaped.push({ point: result.exitPoint, dir: result.exitDir });
+                        }
+                    }
+                    if (escaped.length < 2) return null;
+                    return findConvergence(escaped);
+                };
+
                 // Reversibility validator: time-reversal symmetry says every escaped
                 // ray, traced backward from its exit through the same number of
                 // reflections, must end aligned with its original source. The residual
@@ -2945,6 +3034,80 @@
                     document.getElementById('sim-val-kat-m-m').textContent = fmtMag(measured_m);
                     document.getElementById('sim-val-kat-m-e').textContent = m_diff !== null ? m_diff.toExponential(2) : '—';
                     document.getElementById('sim-val-kat-tol').textContent = tolText;
+
+                    // ── Paraxial KAT ────────────────────────────────────────────
+                    // Universal analytical check: matrix-formalism prediction for
+                    // ANY (f₁, f₂, d_sep, h_obj), compared against a small-angle
+                    // (±2°) trace of the green LED for image height and
+                    // red ↔ blue offset for magnification. Runs always, including
+                    // canonical and asymmetric. Closes the gap left by Formula KAT
+                    // (canonical-only) — if the trace has a bug that survives
+                    // reversibility AND only matters for asymmetric configs, this
+                    // test catches it.
+                    const pred = paraxialPrediction(p.f1, p.f2, p.dsep, p.h_obj);
+
+                    let pkatStatus = 'na', pkatBadge = '— N/A', pkatSummary = '';
+                    let pf_h = null, pf_m = null;
+                    let pm_h = null, pm_m = null;
+                    let ph_diff = null, pm_diff = null;
+                    let pTolText = '—';
+
+                    if (!pred) {
+                        pkatStatus = 'na'; pkatBadge = '— N/A';
+                        pkatSummary = `paraxial prediction undefined (object at/beyond focal length, or imaging at infinity)`;
+                    } else {
+                        // Paraxial trace: green (on-axis) for image height; red/blue
+                        // (off-axis) for magnification via image-side x extent.
+                        const greenP = paraxialTrace(0, p);
+                        const redP   = p.obj_d > 0 ? paraxialTrace(-p.obj_d / 2, p) : null;
+                        const blueP  = p.obj_d > 0 ? paraxialTrace(+p.obj_d / 2, p) : null;
+                        if (!greenP || (p.obj_d > 0 && (!redP || !blueP))) {
+                            pkatStatus = 'na'; pkatBadge = '— N/A';
+                            pkatSummary = 'paraxial trace produced no convergent image — geometry doesn\'t image at small angles';
+                        } else {
+                            pf_h = pred.h_image;
+                            pf_m = Math.abs(pred.mag);
+                            pm_h = greenP[1] - p.vy2;
+                            pm_m = (redP && blueP && p.obj_d > 0)
+                                ? Math.abs(redP[0] - blueP[0]) / p.obj_d
+                                : null;
+
+                            const PABS_H = 0.5, PABS_M = 0.02, PREL = 0.05;
+                            const ph_thr = Math.max(PABS_H, PREL * Math.abs(pf_h));
+                            const pm_thr = Math.max(PABS_M, PREL * Math.abs(pf_m));
+                            ph_diff = Math.abs(pm_h - pf_h);
+                            pm_diff = pm_m !== null ? Math.abs(pm_m - pf_m) : null;
+                            const ph_pass = ph_diff < ph_thr;
+                            const pm_pass = pm_diff === null || pm_diff < pm_thr;
+                            const passed = ph_pass && pm_pass;
+
+                            pTolText = `5% rel · ${PABS_H} mm / ${PABS_M}× abs floor`;
+                            if (passed) {
+                                pkatStatus = 'pass'; pkatBadge = '✓ PASS';
+                                const cfgLabel = (Math.abs(p.f1 - p.f2) < 0.5 && Math.abs(p.f1 - p.dsep) < 0.5)
+                                    ? 'canonical' : 'asymmetric';
+                                pkatSummary = `${cfgLabel} mirascope (f₁=${p.f1}, f₂=${p.f2}, d_sep=${p.dsep}) at h_obj=${p.h_obj} mm — paraxial trace matches matrix prediction within ${(PREL * 100).toFixed(0)}%`;
+                            } else {
+                                pkatStatus = 'fail'; pkatBadge = '✗ FAIL';
+                                const fails = [];
+                                if (!ph_pass) fails.push(`image height off by ${ph_diff.toFixed(3)} mm (threshold ${ph_thr.toFixed(3)} mm)`);
+                                if (pm_diff !== null && !pm_pass) fails.push(`magnification off by ${pm_diff.toFixed(4)} (threshold ${pm_thr.toFixed(4)})`);
+                                pkatSummary = `paraxial trace disagrees with matrix prediction — ${fails.join('; ')}. This indicates a bug in the trace that reversibility didn't catch.`;
+                            }
+                        }
+                    }
+
+                    const pkatStatusEl = document.getElementById('sim-val-pkat-status');
+                    pkatStatusEl.textContent = pkatBadge;
+                    pkatStatusEl.dataset.status = pkatStatus;
+                    document.getElementById('sim-val-pkat-summary').textContent = pkatSummary;
+                    document.getElementById('sim-val-pkat-h-f').textContent = fmtMm(pf_h);
+                    document.getElementById('sim-val-pkat-h-m').textContent = fmtMm(pm_h);
+                    document.getElementById('sim-val-pkat-h-e').textContent = ph_diff !== null ? `${ph_diff.toExponential(2)} mm` : '—';
+                    document.getElementById('sim-val-pkat-m-f').textContent = fmtMag(pf_m);
+                    document.getElementById('sim-val-pkat-m-m').textContent = fmtMag(pm_m);
+                    document.getElementById('sim-val-pkat-m-e').textContent = pm_diff !== null ? pm_diff.toExponential(2) : '—';
+                    document.getElementById('sim-val-pkat-tol').textContent = pTolText;
                 };
 
                 // Bidirectional sync: number input ↔ range slider.
