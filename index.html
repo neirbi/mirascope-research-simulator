@@ -1704,6 +1704,14 @@
                                 </div>
                             </div>
                             <div class="sim__field">
+                                <label for="sim-sharp">sharpness target</label>
+                                <input type="range" class="sim__slider" id="sim-sharp-range" min="1" max="60" step="1" value="5" aria-label="sharpness target">
+                                <div class="sim__input-wrap">
+                                    <input type="number" id="sim-sharp" value="5" step="1" min="1" max="60">
+                                    <span class="sim__unit">arcmin</span>
+                                </div>
+                            </div>
+                            <div class="sim__field">
                                 <label for="sim-rays">rays / LED</label>
                                 <input type="range" class="sim__slider" id="sim-rays-range" min="2" max="60" step="1" value="2" aria-label="rays per LED">
                                 <div class="sim__input-wrap">
@@ -2732,13 +2740,12 @@
                 // For viewing distance 500 mm: 5 arcmin → spot cap ~727 µm.
                 // For viewing distance 1 m: ~1.45 mm. For 3 m: ~4.4 mm.
                 const ESCAPE_FRAC_MIN = 0.5;
-                const SHARPNESS_ARCMIN = 5; // consumer-grade target
                 const ARCMIN_RAD = (1 / 60) * (Math.PI / 180);
-                const spotLimitForViewing = (viewDist) => Math.max(0.05, viewDist * SHARPNESS_ARCMIN * ARCMIN_RAD);
-                const scoreCandidate = (r1, r2, ra, dsep, h_obj, obj_d, nbounces, nrays, viewDist) => {
+                const spotLimitForViewing = (viewDist, sharpArcmin) => Math.max(0.05, viewDist * sharpArcmin * ARCMIN_RAD);
+                const scoreCandidate = (r1, r2, ra, dsep, h_obj, obj_d, nbounces, nrays, viewDist, sharpArcmin) => {
                     const p = paramsFromRatios(r1, r2, ra, dsep, h_obj, obj_d, nbounces);
                     if (!p) return null;
-                    const spotCap = spotLimitForViewing(viewDist);
+                    const spotCap = spotLimitForViewing(viewDist, sharpArcmin);
                     const ledOffsets = [-obj_d / 2, 0, +obj_d / 2];
                     let intersectMin = -Infinity, intersectMax = +Infinity;
                     let worstSpot = 0;
@@ -2810,7 +2817,7 @@
                 // at any boundary on the first pass.
                 const R_LO_DEFAULT = 0.6, R_HI_DEFAULT = 2.4, R_STEPS = 15;
                 const RA_VALUES_DEFAULT = [0.08, 0.10, 0.12, 0.15, 0.18, 0.22, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50];
-                const searchAtScale = (dsep, h_obj, obj_d, nbounces, nraysOpt, bounds, viewDist) => {
+                const searchAtScale = (dsep, h_obj, obj_d, nbounces, nraysOpt, bounds, viewDist, sharpArcmin) => {
                     const R_LO = bounds.rLo, R_HI = bounds.rHi;
                     const RA_VALUES = bounds.raValues;
                     const dr = (R_HI - R_LO) / (R_STEPS - 1);
@@ -2821,7 +2828,7 @@
                             const r1 = R_LO + i * dr;
                             for (let j = 0; j < R_STEPS; j++) {
                                 const r2 = R_LO + j * dr;
-                                const c = scoreCandidate(r1, r2, ra, dsep, h_obj, obj_d, nbounces, nraysOpt, viewDist);
+                                const c = scoreCandidate(r1, r2, ra, dsep, h_obj, obj_d, nbounces, nraysOpt, viewDist, sharpArcmin);
                                 if (c && (!best || c.score > best.score)) { best = c; bestRa = ra; }
                             }
                         }
@@ -2831,7 +2838,7 @@
                     const objective = (x) => {
                         const r1 = Math.min(R_HI, Math.max(R_LO, x[0]));
                         const r2 = Math.min(R_HI, Math.max(R_LO, x[1]));
-                        const c = scoreCandidate(r1, r2, bestRa, dsep, h_obj, obj_d, nbounces, nraysOpt, viewDist);
+                        const c = scoreCandidate(r1, r2, bestRa, dsep, h_obj, obj_d, nbounces, nraysOpt, viewDist, sharpArcmin);
                         if (!c) return 1e6;
                         return -c.score;
                     };
@@ -2839,7 +2846,7 @@
                     const pc = scoreCandidate(
                         Math.min(R_HI, Math.max(R_LO, polished.x[0])),
                         Math.min(R_HI, Math.max(R_LO, polished.x[1])),
-                        bestRa, dsep, h_obj, obj_d, nbounces, nraysOpt, viewDist
+                        bestRa, dsep, h_obj, obj_d, nbounces, nraysOpt, viewDist, sharpArcmin
                     );
                     if (pc && pc.score > best.score) best = pc;
                     return best;
@@ -2875,7 +2882,8 @@
                     const cur = readParams();
                     const h_obj = cur.h_obj, obj_d = cur.obj_d, nbounces = cur.nbounces;
                     const viewDist = Math.max(50, +document.getElementById('sim-view-d').value || 500);
-                    const spotCapDerived = spotLimitForViewing(viewDist);
+                    const sharpArcmin = Math.max(0.5, +document.getElementById('sim-sharp').value || 5);
+                    const spotCapDerived = spotLimitForViewing(viewDist, sharpArcmin);
                     const nraysOpt = 24;
 
                     // ─────────────────────────────────────────────────────
@@ -2914,7 +2922,7 @@
                         // Run inner search at each d_sep.
                         tier = [];
                         for (const dsep of dsepCandidates) {
-                            const result = searchAtScale(dsep, h_obj, obj_d, nbounces, nraysOpt, bounds, viewDist);
+                            const result = searchAtScale(dsep, h_obj, obj_d, nbounces, nraysOpt, bounds, viewDist, sharpArcmin);
                             if (result) tier.push({ dsep, result, score: result.score });
                         }
                         if (tier.length === 0) {
@@ -3048,7 +3056,7 @@
                         ? ` Bounds expanded ${expansions}× (${expansionLog.join('; ')}).`
                         : '';
                     const capStr = spotCapDerived < 1 ? `${(spotCapDerived * 1000).toFixed(0)} µm` : `${spotCapDerived.toFixed(2)} mm`;
-                    summaryEl.textContent = `Intersect viewing angle: ${best.score.toFixed(1)}° (window [${best.intersectMin.toFixed(1)}°, ${best.intersectMax.toFixed(1)}°]). Worst spot RMS ${spotStr} (cap ${capStr} from viewing distance ${viewDist} mm × ${SHARPNESS_ARCMIN} arcmin sharpness target). Scale curve (d_sep→angle): ${curve}.${expansionNote}`;
+                    summaryEl.textContent = `Intersect viewing angle: ${best.score.toFixed(1)}° (window [${best.intersectMin.toFixed(1)}°, ${best.intersectMax.toFixed(1)}°]). Worst spot RMS ${spotStr} (cap ${capStr} from viewing distance ${viewDist} mm × ${sharpArcmin} arcmin sharpness target). Scale curve (d_sep→angle): ${curve}.${expansionNote}`;
                     paramsEl.textContent = `Ratios — r₁=${best.r1.toFixed(3)} · r₂=${best.r2.toFixed(3)} · r_a=${best.ra.toFixed(3)}    |    Absolute — f₁=${f1r} mm · f₂=${f2r} mm · d_sep=${dsepr} mm · a=${ar} mm · D=${best.p.D.toFixed(1)} mm`;
                 };
 
@@ -3750,6 +3758,7 @@
                     ['sim-hobj',     'sim-hobj-range'],
                     ['sim-obj-d',    'sim-obj-d-range'],
                     ['sim-view-d',   'sim-view-d-range'],
+                    ['sim-sharp',    'sim-sharp-range'],
                     ['sim-rays',     'sim-rays-range'],
                     ['sim-bounces',  'sim-bounces-range'],
                 ].forEach(([numId, rangeId]) => {
