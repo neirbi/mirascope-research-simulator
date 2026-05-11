@@ -553,6 +553,119 @@
         }
 
         /* ===========================================
+           CURRENT BEST DESIGN — spec card under the hero
+           Single source of truth for "the winning geometry today."
+           Lives directly under the hero so anyone landing on the page
+           sees the headline result without scrolling. Updated whenever
+           a new optimizer run produces a better answer.
+
+           Layout: a single card with a heading row + an auto-fitting
+           grid of spec tiles. Each tile is one number with a label,
+           an optional comparison badge ("vs. toy"), and an optional
+           highlight (for the shape finding).
+
+           Responsive: auto-fit + minmax collapses cleanly from
+           desktop multi-column to single-column on mobile. Uses CSS
+           custom properties so theme switching just works.
+           =========================================== */
+        .best-design {
+            margin-block: 0 var(--space-xl);
+            padding-inline: var(--space-md);
+        }
+        .best-design__card {
+            max-width: 64rem;
+            margin-inline: auto;
+            padding: clamp(1.25rem, 2vw + 0.5rem, 2rem);
+            border: 1px solid var(--color-border-subtle);
+            border-radius: 1rem;
+            background: var(--color-bg-surface);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+        }
+        .best-design__head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 0.5rem 1rem;
+            margin-bottom: clamp(1rem, 1.5vw, 1.5rem);
+        }
+        .best-design__title {
+            font-size: var(--text-lg);
+            font-weight: var(--weight-semibold);
+            color: var(--color-text-primary);
+            margin: 0;
+            letter-spacing: -0.01em;
+        }
+        .best-design__sub {
+            font-size: var(--text-sm);
+            color: var(--color-text-secondary);
+            margin: 0;
+        }
+        .best-design__grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+            gap: clamp(0.75rem, 1.5vw, 1.25rem);
+        }
+        .best-design__cell {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            padding: 0.875rem 1rem;
+            border-radius: 0.625rem;
+            background: var(--color-bg-primary);
+            border: 1px solid var(--color-border-subtle);
+        }
+        .best-design__label {
+            font-size: var(--text-xs);
+            font-weight: var(--weight-medium);
+            color: var(--color-text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .best-design__value {
+            font-size: var(--text-lg);
+            font-weight: var(--weight-semibold);
+            color: var(--color-text-primary);
+            font-variant-numeric: tabular-nums;
+            line-height: 1.2;
+        }
+        .best-design__sub-value {
+            font-size: var(--text-sm);
+            color: var(--color-text-secondary);
+            font-variant-numeric: tabular-nums;
+        }
+        .best-design__badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            margin-top: 0.25rem;
+            padding: 0.125rem 0.5rem;
+            border-radius: 999px;
+            font-size: var(--text-xs);
+            font-weight: var(--weight-semibold);
+            font-variant-numeric: tabular-nums;
+            width: fit-content;
+        }
+        .best-design__badge--gain {
+            color: var(--color-accent-strong);
+            background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+            border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+        }
+        .best-design__badge--new {
+            color: var(--color-accent-strong);
+            background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+            border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+        }
+        .best-design__cell--featured {
+            background: color-mix(in srgb, var(--color-accent) 6%, var(--color-bg-primary));
+            border-color: color-mix(in srgb, var(--color-accent) 30%, var(--color-border-subtle));
+        }
+        @media (prefers-reduced-motion: no-preference) {
+            .best-design__cell { transition: transform 120ms ease, border-color 120ms ease; }
+            .best-design__cell:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--color-accent) 25%, var(--color-border-subtle)); }
+        }
+
+        /* ===========================================
            SECTION — eyebrow + title + body
            Generic centered section header used for every nav-linked
            section. The eyebrow names the section (matches the nav link),
@@ -1740,6 +1853,63 @@
                 </div>
             </div>
         </section>
+
+        <!-- ===========================================
+             CURRENT BEST DESIGN — winning geometry from the latest
+             optimizer run, in plain units. Single source of truth.
+             Update the numbers here when a new optimization wins.
+             =========================================== -->
+        <section class="best-design" aria-labelledby="best-design-title">
+            <div class="best-design__card">
+                <div class="best-design__head">
+                    <h2 id="best-design-title" class="best-design__title">Current best design <span style="font-weight: var(--weight-regular); color: var(--color-text-secondary);">— 2026-05-10</span></h2>
+                    <p class="best-design__sub">Optimizer output for a 50&nbsp;mm cube · scale-invariant gates (image&nbsp;≥&nbsp;object, blur&nbsp;≤&nbsp;5%, cone&nbsp;≥&nbsp;60°)</p>
+                </div>
+                <div class="best-design__grid">
+
+                    <div class="best-design__cell">
+                        <span class="best-design__label">Diameter</span>
+                        <span class="best-design__value">36.3 cm</span>
+                        <span class="best-design__sub-value">14.3 in · 2.6× toy</span>
+                    </div>
+
+                    <div class="best-design__cell">
+                        <span class="best-design__label">Height (M1↔M2)</span>
+                        <span class="best-design__value">13.7 cm</span>
+                        <span class="best-design__sub-value">5.4 in · 3.0× toy</span>
+                    </div>
+
+                    <div class="best-design__cell">
+                        <span class="best-design__label">Object size</span>
+                        <span class="best-design__value">50 × 50 mm</span>
+                        <span class="best-design__sub-value">cube · toy frog 35 mm Ø</span>
+                        <span class="best-design__badge best-design__badge--gain">+43% diameter vs toy</span>
+                    </div>
+
+                    <div class="best-design__cell">
+                        <span class="best-design__label">Image</span>
+                        <span class="best-design__value">54 mm Ø</span>
+                        <span class="best-design__sub-value">1.09× object · 4.5% blur</span>
+                    </div>
+
+                    <div class="best-design__cell">
+                        <span class="best-design__label">Viewing angle</span>
+                        <span class="best-design__value">68.5°</span>
+                        <span class="best-design__sub-value">max half-angle · toy 41°</span>
+                        <span class="best-design__badge best-design__badge--gain">+67% vs toy</span>
+                    </div>
+
+                    <div class="best-design__cell best-design__cell--featured">
+                        <span class="best-design__label">M1 shape</span>
+                        <span class="best-design__value">Prolate ellipsoid</span>
+                        <span class="best-design__sub-value">K₁ = −0.5 · f₁/f₂ = 0.53</span>
+                        <span class="best-design__badge best-design__badge--new">NEW: not a parabola</span>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
         <section class="section" id="origin" aria-labelledby="origin-title">
             <div class="container">
                 <div class="section__inner">
@@ -2190,7 +2360,7 @@
 
                 <div class="changelog-list">
 
-                    <details class="changelog-item" name="changelog" open>
+                    <details class="changelog-item" name="changelog">
                         <summary class="changelog-item__head">
                             <time class="changelog-item__date" datetime="2026-05-10">2026-05-10</time>
                             <span class="changelog-item__tag changelog-item__tag--feat">milestone</span>
