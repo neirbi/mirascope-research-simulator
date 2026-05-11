@@ -2190,6 +2190,65 @@
 
                 <div class="changelog-list">
 
+                    <details class="changelog-item" name="changelog" open>
+                        <summary class="changelog-item__head">
+                            <time class="changelog-item__date" datetime="2026-05-10">2026-05-10</time>
+                            <span class="changelog-item__tag changelog-item__tag--feat">milestone</span>
+                            <span class="changelog-item__title">FINDING: First non-parabolic M1 optimum — prolate ellipsoid (K₁ = −0.5) beats parabola at fixed-device-size + image ≥ object + toy-blur constraints.</span>
+                            <svg class="changelog-item__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <div class="changelog-item__body">
+                            <p>Under the new scale-invariant optimizer (image diameter ≥ object diameter, spot RMS ≤ 5 % of image, viewing cone ≥ 60°), the joint K₁–r₁–r₂–r_a–d_sep search for a 50 mm cube selected <strong>K₁ = −0.5 (prolate ellipsoid)</strong> over K₁ = −1 (parabola). Winning geometry: <code>f₁ = 100 mm · f₂ = 189 mm · d_sep = 137 mm · a = 80 mm · D = 363 mm</code>. Image diameter 54.3 mm (1.09× object), worst spot RMS 2.47 mm (4.5 % of image), viewing cone 65.7°. <strong>Device size dropped from 1.31 m (parabolic optimum under same scale-invariant gates) to 363 mm — a 3.6× reduction by shape engineering alone.</strong></p>
+                            <p>The asymmetric scale-ratio (f₁/f₂ ≈ 0.53) is the largest the optimizer has chosen in any run to date. All three scale-invariant constraints are simultaneously active at the optimum — magnification (1.09× ≈ 1.00× floor), blur (4.5 % ≈ 5 % ceiling), cone (65.7° ≈ 60° floor) — placing the solution at a corner of the feasible region.</p>
+                            <p class="changelog-item__why">This contradicts the project's working hypothesis that "the parabola is at least locally optimal across all relevant regimes." The parabola is regime-optimal: it wins when the optimizer can scale the device freely (because spherical aberration is suppressed at small h/f). When device size is capped by a minimum-cone constraint, a different conic shape balances spherical and coma terms better than the parabola. K = −0.5 sits halfway between sphere (K=0, blurry) and parabola (K=−1, point-perfect for axial rays) — empirical evidence the right answer lives between the extremes, exactly where higher-order aspheric corrections can extend. The aspheric M1 direction is now strongly motivated as the next experiment, not just a hypothesis.</p>
+                            <p class="changelog-item__why">Confidence caveats: (a) the K₁ grid was coarse — <code>[−1.5, −1.0, −0.5, 0.0]</code> — so the actual conic optimum could be at K = −0.4 or −0.6, not exactly −0.5. (b) Escape ratio at the optimum is 50 % (36/72 rays), lower than the 80 % typical of larger devices; the geometry is at the edge of the conic family's viable region and a denser ray sample is needed to firm up the spot-RMS measurement. (c) Reversibility KAT passed at machine precision (max residual 1.0e-13 mm), so the trace itself is trustworthy at this geometry. (d) Formula / Paraxial / Cross-Check KATs correctly SKIP at K₁ ≠ −1 (their derivations assume parabolic M1).</p>
+                        </div>
+                    </details>
+
+                    <details class="changelog-item" name="changelog">
+                        <summary class="changelog-item__head">
+                            <time class="changelog-item__date" datetime="2026-05-10">2026-05-10</time>
+                            <span class="changelog-item__tag changelog-item__tag--feat">release</span>
+                            <span class="changelog-item__title">Release v0.10.0 — Conic M1 search infrastructure + scale-invariant optimizer.</span>
+                            <svg class="changelog-item__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
+                        </summary>
+                        <div class="changelog-item__body">
+                            <p>Major optimizer rebuild driven by the realization that the previous absolute-spot-cap objective forced the optimizer into multi-foot devices for normally-sized objects, because it conflated "viewer's choice of distance" with "physical device constraint." Below is the full set of changes that landed together; the prolate-ellipsoid finding above is the direct consequence of these.</p>
+
+                            <p><strong>Added</strong></p>
+                            <ul>
+                                <li><strong>Conic M1 family.</strong> M1 generalised from parabola to the conic-of-revolution family parameterised by K₁. K₁ = −1 reproduces the parabola exactly; K₁ = 0 is a sphere; intermediate values are prolate ellipsoids; K₁ &lt; −1 is hyperboloid. New <code>K₁</code> slider (range −3 to 0, default −1).</li>
+                                <li><strong>Conic M1 Search</strong> button — 9-point diagnostic (3 cols × 3 rows over the object's extent) reporting max spot RMS, intersect viewing cone (full width), and per-point visibility.</li>
+                                <li><strong>K₁ in the Optimize Shape search space.</strong> Outer optimiser loop grids K₁ over <code>[−1.5, −1.0, −0.5, 0.0]</code>, Nelder-Mead polishes (r₁, r₂) at each shape, picks the joint best. Reports the winning shape (parabola / prolate ellipsoid / sphere / hyperboloid) and writes K₁ back to the slider so the SVG matches the optimiser's claim.</li>
+                                <li><strong>9-point object visualisation.</strong> Main run() now draws the full object extent — a dashed outline box plus 6 outline circles (mid + top rows, in the LED colour of their column). The 3 base LEDs keep their rays as before.</li>
+                                <li><strong>True rim geometry.</strong> Replaced the parabola-only rim formula with a 64-iteration bisection of <code>sag_M1(x; R, K) + sag_M2(x; f₂) = d_sep</code>, so M1 (conic) and M2 (parabola) physically meet at the same x for any K. Bit-identical to the closed form at K=−1 (verified to ~1e-10).</li>
+                            </ul>
+
+                            <p><strong>Changed</strong></p>
+                            <ul>
+                                <li><strong>Optimizer objective is now scale-invariant.</strong> Previous: "max viewing angle subject to spot RMS ≤ 5 arcmin × 500 mm (= 727 µm)." That absolute-mm cap was pinned to a UI-chosen viewing distance, was not preserved under linear scaling of the device, and forced 8.5 ft devices for a 50 mm cube. New gates are both scale-invariant: <code>image_diameter ≥ 1.0 × object_diameter</code> (real magnification, not de-magnification) and <code>spot_RMS ≤ 5 % of image_diameter</code> (toy-equivalent perceived blur). Empirical motivation: the real user-owned toy measures ~3–5 % spot/image at the image plane; the new threshold accepts the toy as feasible, the old absolute cap did not.</li>
+                                <li><strong>Tie-breaker replaced.</strong> The old "smallest d_sep within 90 % of max viewing angle" rule was inherited from the spot-cap era; under the new objective it overshot device size by chasing the last few degrees of cone. Now: smallest d_sep that clears a 60° viewing-cone floor wins. If no candidate clears the floor, fall back to widest-cone candidate so the bounds-expansion pass continues.</li>
+                                <li><strong>Sharpness arcmin + viewing distance sliders no longer drive the optimizer.</strong> They remain in the UI for run() / KATs (where they describe the user's observation conditions) but are not in the optimiser's gate. The optimiser is now a function of the geometry alone.</li>
+                                <li><strong>Optimizer readout</strong> shows image diameter, magnification, and worst spot RMS as a percentage of image (instead of absolute µm vs cap). Label updated from "build compact-knee · 90%·spot-scaled" to "scale-invariant · min cone 60° · blur ≤ 5%".</li>
+                            </ul>
+
+                            <p><strong>Fixed</strong></p>
+                            <ul>
+                                <li><strong>Coordinate-frame bug in Conic M1 mode.</strong> The first conic-mode runner placed sample points in M1-vertex coordinates while comparing against absolute centred coordinates, causing the collision guard to falsely fire on geometries that fit fine.</li>
+                                <li><strong><code>ReferenceError</code> in the optimizer's slider write-back.</strong> <code>K1won</code> was referenced before its <code>const</code> declaration (TDZ), causing the optimiser to throw mid-flight and freeze the status badge on "searching…" even though partial results had landed on the f₁/f₂/d_sep sliders. Hoisted the declaration above the write-back.</li>
+                                <li><strong>KAT domain handling for non-parabolic M1.</strong> Formula / Paraxial / Cross-Check KATs now SKIP cleanly at K₁ ≠ −1 with an explicit "valid only for parabolic M1" message, instead of running parabola-derived formulae against a non-parabolic geometry and producing false-positive failures. Reversibility and Viewing-Angle KATs are shape-agnostic and keep running.</li>
+                            </ul>
+
+                            <p><strong>Verified</strong></p>
+                            <ul>
+                                <li>Bit-identical regression at K₁ = −1 across all five KATs, the optimiser, and run(). The conic branch short-circuits to the original parabolic functions at K=−1; no float drift introduced.</li>
+                                <li>Conic intersect / normal / sag verified numerically against parabolic equivalents at K=−1, R=2f: max divergence ~2e-16 (machine precision).</li>
+                            </ul>
+
+                            <p class="changelog-item__why">Independent finding (entry above): the rebuilt optimiser found a prolate ellipsoid M1 beats the parabola for a 50 mm cube at toy-class device-size constraints. The rebuild was a prerequisite for that result — the old objective would have rejected the winning geometry as failing the absolute-µm cap, and the old tie-breaker would have upscaled the device past the regime where the conic shape advantage emerges.</p>
+                        </div>
+                    </details>
+
                     <details class="changelog-item" name="changelog">
                         <summary class="changelog-item__head">
                             <time class="changelog-item__date" datetime="2026-05-08">2026-05-08</time>
