@@ -2842,6 +2842,12 @@
                     const obj_d = Math.max(0, +document.getElementById('sim-obj-d').value);
                     const nrays = Math.max(1, Math.floor(+document.getElementById('sim-rays').value));
                     const nbounces = Math.max(2, Math.floor(+document.getElementById('sim-bounces').value));
+                    // K1 is the conic constant of M1. K1 = −1 reproduces the
+                    // parabola exactly; the M1 helpers below short-circuit to
+                    // the existing parabolic code at K1 = −1, so legacy traces,
+                    // KATs, and the optimizer keep their bit-identical results.
+                    const k1El = document.getElementById('sim-k1');
+                    const K1 = k1El ? +k1El.value : -1;
 
                     // Derived rim. Guard against zero or negative.
                     const rimSq = (4 * f1 * f2 * dsep) / (f1 + f2);
@@ -2849,6 +2855,8 @@
 
                     return {
                         f1, f2, dsep, a, h_obj, obj_d, nrays, nbounces,
+                        K1,
+                        R1: 2 * f1,           // apex radius of curvature (matches parabola at K1=−1)
                         vy1: -dsep / 2,
                         vy2: +dsep / 2,
                         halfW,
@@ -2912,13 +2920,79 @@
                     return Number.isFinite(best) ? best : null;
                 };
 
+                // -----------------------------------------------------------
+                // Conic-of-revolution surface for M1.  Implicit form:
+                //   (1+K)·u² − 2R·s·u + x² = 0,   u = y − vy
+                // Reduces analytically to y = x²/(4f) when K = −1, R = 2f, so
+                // every M1 helper below routes through this generalisation —
+                // at K1 = −1 the math collapses to the same coefficients as
+                // intersectParabola / parabolaY / surfaceNormal, and KATs that
+                // tested those formulas continue to pass.
+                // -----------------------------------------------------------
+                const conicSag = (xRim, R, K) => {
+                    const k1 = 1 + K;
+                    const disc = R * R - k1 * xRim * xRim;
+                    if (disc < 0) return NaN;
+                    return (xRim * xRim) / (R + Math.sqrt(disc));
+                };
+                const intersectConic = (ox, oy, dx, dy, R, K, s, vy, tMin, absMin, absMax) => {
+                    const k1 = 1 + K;
+                    const u0 = oy - vy;
+                    const u1 = dy;
+                    const A = k1 * u1 * u1 + dx * dx;
+                    const B = 2 * (k1 * u0 * u1 - R * s * u1 + ox * dx);
+                    const C = k1 * u0 * u0 - 2 * R * s * u0 + ox * ox;
+                    if (Math.abs(A) < 1e-12) {
+                        if (Math.abs(B) < 1e-12) return null;
+                        const t = -C / B;
+                        if (t <= tMin) return null;
+                        const ax = Math.abs(ox + t * dx);
+                        return (ax >= absMin && ax <= absMax) ? t : null;
+                    }
+                    const disc = B * B - 4 * A * C;
+                    if (disc < 0) return null;
+                    const sq = Math.sqrt(disc);
+                    const t1 = (B > 0) ? (-B - sq) / (2 * A) : (-B + sq) / (2 * A);
+                    const t2 = C / (A * t1);
+                    let best = Infinity;
+                    for (const t of [t1, t2]) {
+                        if (t > tMin && t < best) {
+                            const ax = Math.abs(ox + t * dx);
+                            if (ax >= absMin && ax <= absMax) best = t;
+                        }
+                    }
+                    return Number.isFinite(best) ? best : null;
+                };
+                const conicNormal = (x, y, R, K, s, vy) => {
+                    const nx = -s * 2 * x;
+                    const ny = -s * (2 * (1 + K) * (y - vy) - 2 * R * s);
+                    const len = Math.sqrt(nx * nx + ny * ny);
+                    return [nx / len, ny / len];
+                };
+
                 // Mirror-specific helpers. Forward and reverse traces use these
                 // identically, so the physics matches in both directions and there
                 // is no separate aperture-handling code to keep in sync.
+                // M1 branches to the conic family for K1 ≠ −1; otherwise we
+                // call the original parabolic functions verbatim so existing
+                // KATs and the optimizer remain bit-identical at K1 = −1.
                 const intersectM1 = (ox, oy, dx, dy, p, tMin) =>
-                    intersectParabola(ox, oy, dx, dy, p.f1, +1, p.vy1, tMin, 0, p.halfW);
+                    (p.K1 === -1)
+                        ? intersectParabola(ox, oy, dx, dy, p.f1, +1, p.vy1, tMin, 0, p.halfW)
+                        : intersectConic(ox, oy, dx, dy, p.R1, p.K1, +1, p.vy1, tMin, 0, p.halfW);
                 const intersectM2 = (ox, oy, dx, dy, p, tMin) =>
                     intersectParabola(ox, oy, dx, dy, p.f2, -1, p.vy2, tMin, p.a / 2, p.halfW);
+
+                // M1 surface helpers — y(x) and normal(x, y). Both reduce to
+                // the parabolic versions when K1 = −1.
+                const m1SurfaceY = (x, p) =>
+                    (p.K1 === -1)
+                        ? parabolaY(x, p.f1, +1, p.vy1)
+                        : p.vy1 + conicSag(x, p.R1, p.K1);
+                const m1Normal = (x, y, p) =>
+                    (p.K1 === -1)
+                        ? surfaceNormal(x, p.f1, +1)
+                        : conicNormal(x, y, p.R1, p.K1, +1, p.vy1);
 
                 // Surface normal (Card 1): unnormalized ñ = (-x/2f, s)
                 const surfaceNormal = (x, f, s) => {
@@ -2999,7 +3073,9 @@
                         const hitX = x + t * vx;
                         const hitY = y + t * vy;
                         points.push([hitX, hitY]);
-                        const [nx, ny] = surfaceNormal(hitX, mirror === 1 ? p.f1 : p.f2, mirror === 1 ? +1 : -1);
+                        const [nx, ny] = mirror === 1
+                            ? m1Normal(hitX, hitY, p)
+                            : surfaceNormal(hitX, p.f2, -1);
                         [vx, vy] = reflect(vx, vy, nx, ny);
                         const dlen = Math.sqrt(vx * vx + vy * vy);
                         vx /= dlen; vy /= dlen;
@@ -3058,7 +3134,9 @@
                         else return { error: 'no_intersection', bounce: i, mirror: null };
                         const hitX = x + t * vx;
                         const hitY = y + t * vy;
-                        const [nx, ny] = surfaceNormal(hitX, mirror === 1 ? p.f1 : p.f2, mirror === 1 ? +1 : -1);
+                        const [nx, ny] = mirror === 1
+                            ? m1Normal(hitX, hitY, p)
+                            : surfaceNormal(hitX, p.f2, -1);
                         [vx, vy] = reflect(vx, vy, nx, ny);
                         const dlen = Math.sqrt(vx * vx + vy * vy);
                         vx /= dlen; vy /= dlen;
@@ -3075,6 +3153,20 @@
                         const x = -halfW + (i / N) * 2 * halfW;
                         const y = parabolaY(x, f, s, vy);
                         d += (i === 0 ? 'M' : 'L') + x.toFixed(3) + ' ' + y.toFixed(3) + ' ';
+                    }
+                    return d;
+                };
+                // M1 SVG path — uses m1SurfaceY so the drawn curve matches the
+                // actual mirror the trace is reflecting off. At K1 = −1 this
+                // produces the same polyline as parabolaPath would have.
+                const m1Path = (p) => {
+                    const N = 80;
+                    let d = '';
+                    for (let i = 0; i <= N; i++) {
+                        const x = -p.halfW + (i / N) * 2 * p.halfW;
+                        const y = m1SurfaceY(x, p);
+                        if (!Number.isFinite(y)) continue;
+                        d += (d === '' ? 'M' : 'L') + x.toFixed(3) + ' ' + y.toFixed(3) + ' ';
                     }
                     return d;
                 };
@@ -3127,7 +3219,7 @@
                         // here would corrupt the source coordinate by exactly that
                         // amount — visible as a 1 µm bias in the KAT image-height
                         // residual back when this read `+ EPS * 10`.
-                        const objY = parabolaY(ledX, p.f1, +1, p.vy1) + p.h_obj;
+                        const objY = m1SurfaceY(ledX, p) + p.h_obj;
                         const traces = [];
                         const escapedRays = []; // { point, dir } for each escaped ray at aperture
 
@@ -3244,7 +3336,7 @@
                         'stroke-linecap': 'round',
                         opacity: '0.55',
                     };
-                    root.appendChild(make('path', { ...mirrorAttrs, d: parabolaPath(p.f1, +1, p.vy1, p.halfW) }));
+                    root.appendChild(make('path', { ...mirrorAttrs, d: m1Path(p) }));
                     root.appendChild(make('path', { ...mirrorAttrs, d: parabolaPathWithGap(p.f2, -1, p.vy2, p.halfW, p.a) }));
 
                     // For one ray, return the (focus,far) parameter pair along its exit
@@ -3352,7 +3444,11 @@
                     // D is computed from the rim formula; depth (sagitta) is D²/(16f) at the rim;
                     // image height is the center LED's convergence above the aperture plane;
                     // viewing angle is the max half-angle from vertical across all escaped rays.
-                    const depth = (p.D * p.D) / (16 * p.f1);
+                    // Mirror sag at the rim. At K1 = −1 this reduces to the
+                    // canonical D²/(16·f₁); for any other conic constant it is
+                    // the actual M1 height above its vertex at x = halfW.
+                    const rimY = m1SurfaceY(p.halfW, p);
+                    const depth = Number.isFinite(rimY) ? (rimY - p.vy1) : (p.D * p.D) / (16 * p.f1);
                     const centerImg = ledData[1].imagePoint;
                     const imgH = centerImg ? centerImg[1] - p.vy2 : null;
 
@@ -3445,7 +3541,7 @@
                 // candidate). All angles are signed degrees from vertical
                 // (0° = straight up, +ve toward +x).
                 const evalLED = (ledX, p, nrays) => {
-                    const objY = parabolaY(ledX, p.f1, +1, p.vy1) + p.h_obj;
+                    const objY = m1SurfaceY(ledX, p) + p.h_obj;
                     const escapedRays = [];
                     const exitAngles = [];
                     let attempted = 0;
@@ -4039,7 +4135,7 @@
                 };
 
                 const paraxialTrace = (ledX, p) => {
-                    const objY = parabolaY(ledX, p.f1, +1, p.vy1) + p.h_obj;
+                    const objY = m1SurfaceY(ledX, p) + p.h_obj;
                     const verticalDistance = p.vy2 - objY;
                     if (verticalDistance <= 0) return null;
                     const apHalf = p.a / 2;
@@ -4220,7 +4316,15 @@
                     let h_diff = null, m_diff = null;
                     let tolText = '—';
 
-                    if (objBeyondFocus) {
+                    if (p.K1 !== -1) {
+                        // The closed-form image-height / magnification formulae
+                        // were derived for a parabolic M1. With K1 ≠ −1 the M1
+                        // surface is no longer parabolic, so any disagreement
+                        // here would conflate "trace bug" with "different
+                        // physics" — better to skip than to falsely fail.
+                        katStatus = 'skip'; katBadge = '⊘ SKIP';
+                        katSummary = `formula valid only for parabolic M1 (K₁ = −1). Currently K₁ = ${p.K1.toFixed(2)} — the conic shape produces a different image geometry that closed-form parabolic formulae cannot predict.`;
+                    } else if (objBeyondFocus) {
                         katStatus = 'na'; katBadge = '— N/A';
                         katSummary = `object at or beyond focal length (h_obj = ${p.h_obj} mm ≥ f₁ = ${p.f1} mm) — no real image, formula doesn't apply`;
                     } else if (!isCanonical) {
@@ -4287,7 +4391,16 @@
                     let ph_diff = null, pm_diff = null;
                     let pTolText = '—';
 
-                    if (!pred) {
+                    if (p.K1 !== -1) {
+                        // 2×2 ray-transfer matrices for a parabolic mirror use
+                        // the thin-mirror approximation 1/f₁; this is not the
+                        // valid paraxial model for a conic of revolution with
+                        // K₁ ≠ −1, where higher-order terms in the sag matter
+                        // for off-axis rays. Skip rather than mislead.
+                        pkatStatus = 'skip'; pkatBadge = '⊘ SKIP';
+                        pkatSummary = `paraxial matrix prediction assumes parabolic M1 (K₁ = −1). Currently K₁ = ${p.K1.toFixed(2)} — paraxial model not applicable to this conic.`;
+                        pTolText = `parabola-only domain`;
+                    } else if (!pred) {
                         pkatStatus = 'na'; pkatBadge = '— N/A';
                         pkatSummary = `paraxial prediction undefined (object at/beyond focal length, or imaging at infinity)`;
                     } else {
@@ -4381,6 +4494,11 @@
                     const XKAT_TOL = 1e-3; // 1 µm; bisection convergence floor ~1e-15
                     let xkat_n = 0, xkat_max = 0, xkat_sumSq = 0;
                     let xkatStatus = 'na', xkatBadge = '— N/A', xkatSummary = '';
+                    // K1 ≠ −1: the independent trace (intersectByMarching +
+                    // rotation-matrix reflection) hard-codes parabolic
+                    // y = x²/(4f), so any disagreement at K1 ≠ −1 catches the
+                    // shape difference, not a bug. Mark SKIP and bypass.
+                    const xkatSkipConic = (p.K1 !== -1);
                     // Probe a small fan from the green LED — covers a
                     // representative angular range without exploding cost.
                     const ledX_xk = 0;
@@ -4389,7 +4507,7 @@
                     const grazeR = Math.atan2(apHalf_xk - ledX_xk, p.vy2 - objY_xk) * 180 / Math.PI;
                     // Test angles: just outside grazing, mid-range, far from grazing.
                     const xk_angles = [grazeR + 1, grazeR + 5, grazeR + 15, grazeR + 30];
-                    for (const ang of xk_angles) {
+                    for (const ang of (xkatSkipConic ? [] : xk_angles)) {
                         if (ang >= 89) continue;
                         const theta = ang * Math.PI / 180;
                         const ddx = Math.sin(theta), ddy = Math.cos(theta);
@@ -4425,7 +4543,10 @@
                             break;
                         }
                     }
-                    if (xkat_n === 0) {
+                    if (xkatSkipConic) {
+                        xkatStatus = 'skip'; xkatBadge = '⊘ SKIP';
+                        xkatSummary = `independent trace assumes parabolic M1. K₁ = ${p.K1.toFixed(2)} — re-enable when a conic-aware second tracer exists.`;
+                    } else if (xkat_n === 0) {
                         xkatStatus = 'na'; xkatBadge = '— N/A';
                         xkatSummary = 'no rays escaped under both implementations to compare';
                     } else {
@@ -4572,99 +4693,23 @@
                 };
 
                 // =================================================
-                // CONIC M1 MODE — generalises M1 from parabola to the
-                // full conic-of-revolution family parameterised by K.
-                // Implicit surface: (1+K)·u² − 2R·s·u + x² = 0,  u = (y − vy).
-                // K = −1 reproduces the parabola y = x²/(4f) when R = 2f (regression
-                // check: with K=−1 the intersect/normal must match intersectM1 /
-                // surfaceNormal bit-for-bit). K = 0 is a sphere of radius R, with
-                // classical spherical aberration — the cost the parabola was
-                // historically chosen to avoid. M2 stays parabolic; object rests
-                // on M1's rim so its base lifts with sag(obj_d/2; R, K).
+                // CONIC M1 DEEP DIAGNOSTIC
+                //
+                // After the refactor, the main run() and every KAT already use
+                // the K1 slider — M1's curve, the trace, the stats panel and
+                // the SVG all change as you slide K. So this button no longer
+                // owns "conic mode"; it owns the deeper 9-point sample test
+                // that complements run()'s 3-LED render.
+                //
+                // For 9 sample points spanning the object (3 columns × 3 rows,
+                // base lifted by rim contact with M1), it traces a dense fan
+                // from each, then reports:
+                //   · max spot RMS — worst-case sharpness over the object
+                //   · intersect viewing cone — angles ALL 9 points share
+                // The bottom readout shows pass/warn/fail. The top stats panel
+                // is run()'s job; it's already correct because run() now traces
+                // through the conic M1.
                 // =================================================
-                const conicSag = (xRim, R, K) => {
-                    const k1 = 1 + K;
-                    const disc = R * R - k1 * xRim * xRim;
-                    if (disc < 0) return NaN;
-                    return (xRim * xRim) / (R + Math.sqrt(disc));
-                };
-
-                // Implicit-form ray–conic intersection. Mirrors the structure of
-                // intersectParabola (Vieta-stable quadratic, smallest valid root)
-                // so the conic and parabola code paths agree at K=−1 by construction.
-                const intersectConic = (ox, oy, dx, dy, R, K, s, vy, tMin, absMin, absMax) => {
-                    const k1 = 1 + K;
-                    const u0 = oy - vy;
-                    const u1 = dy;
-                    const A = k1 * u1 * u1 + dx * dx;
-                    const B = 2 * (k1 * u0 * u1 - R * s * u1 + ox * dx);
-                    const C = k1 * u0 * u0 - 2 * R * s * u0 + ox * ox;
-                    if (Math.abs(A) < 1e-12) {
-                        if (Math.abs(B) < 1e-12) return null;
-                        const t = -C / B;
-                        if (t <= tMin) return null;
-                        const ax = Math.abs(ox + t * dx);
-                        return (ax >= absMin && ax <= absMax) ? t : null;
-                    }
-                    const disc = B * B - 4 * A * C;
-                    if (disc < 0) return null;
-                    const sq = Math.sqrt(disc);
-                    const t1 = (B > 0) ? (-B - sq) / (2 * A) : (-B + sq) / (2 * A);
-                    const t2 = C / (A * t1);
-                    let best = Infinity;
-                    for (const t of [t1, t2]) {
-                        if (t > tMin && t < best) {
-                            const ax = Math.abs(ox + t * dx);
-                            if (ax >= absMin && ax <= absMax) best = t;
-                        }
-                    }
-                    return Number.isFinite(best) ? best : null;
-                };
-
-                // Surface normal from implicit gradient. Reflection is sign-
-                // invariant (r = d − 2(d·n)n is the same for n and −n), so the
-                // overall orientation doesn't affect physics — we only need a
-                // consistent unit vector along the surface normal.
-                const conicNormal = (x, y, R, K, s, vy) => {
-                    const nx = -s * 2 * x;
-                    const ny = -s * (2 * (1 + K) * (y - vy) - 2 * R * s);
-                    const len = Math.sqrt(nx * nx + ny * ny);
-                    return [nx / len, ny / len];
-                };
-
-                // Trace one ray through conic M1 + parabolic M2. Mirrors traceRay
-                // but swaps M1's intersect/normal for the conic version. M2 is
-                // unchanged: the search is "what shape for M1 holds the image
-                // together while widening the cone."
-                const traceRayConic = (ox, oy, dx, dy, p) => {
-                    let x = ox, y = oy, vx = dx, vy = dy;
-                    for (let bounce = 0; bounce < p.nbounces; bounce++) {
-                        const t1 = intersectConic(x, y, vx, vy, p.R1, p.K1, +1, p.vy1, EPS, 0, p.halfW);
-                        const t2 = intersectM2(x, y, vx, vy, p, EPS);
-                        let t = null, mirror = null;
-                        if (t1 !== null && (t2 === null || t1 < t2)) { t = t1; mirror = 1; }
-                        else if (t2 !== null) { t = t2; mirror = 2; }
-                        else return { escaped: false };
-                        const hitX = x + t * vx;
-                        const hitY = y + t * vy;
-                        let nx, ny;
-                        if (mirror === 1) {
-                            [nx, ny] = conicNormal(hitX, hitY, p.R1, p.K1, +1, p.vy1);
-                        } else {
-                            [nx, ny] = surfaceNormal(hitX, p.f2, -1);
-                        }
-                        [vx, vy] = reflect(vx, vy, nx, ny);
-                        const dlen = Math.sqrt(vx * vx + vy * vy);
-                        vx /= dlen; vy /= dlen;
-                        x = hitX; y = hitY;
-                    }
-                    const tBlocked = intersectM2(x, y, vx, vy, p, EPS);
-                    if (tBlocked !== null) return { escaped: false };
-                    const exitX = rayCrossesY(x, y, vx, vy, p.vy2);
-                    if (exitX === null || Math.abs(exitX) >= p.a / 2) return { escaped: false };
-                    return { escaped: true, exitPoint: [exitX, p.vy2], exitDir: [vx, vy] };
-                };
-
                 const showConicStatus = (status, summary, paramsLine) => {
                     const wrap = document.getElementById('sim-conic-readout');
                     wrap.hidden = false;
@@ -4677,22 +4722,21 @@
                 };
 
                 const runConic = () => {
-                    const params = readParams();
-                    const K1 = +document.getElementById('sim-k1').value;
-                    const R1 = 2 * params.f1;
-                    const p = { ...params, K1, R1 };
+                    // Re-render the main scene first — guarantees the SVG, the
+                    // top stats panel, and our diagnostic always reflect the
+                    // same K1. (Pressing the button is therefore strictly more
+                    // informative than pressing Run.)
+                    run();
 
+                    const p = readParams();
                     const xRim = p.obj_d / 2;
-                    const liftFromVertex = conicSag(xRim, R1, K1);
+                    const liftFromVertex = (p.K1 === -1)
+                        ? (xRim * xRim) / (4 * p.f1)
+                        : conicSag(xRim, p.R1, p.K1);
                     if (!Number.isFinite(liftFromVertex)) {
                         showConicStatus('fail', `M1 conic is invalid at x = ${xRim.toFixed(1)} mm (object width exceeds the rim radius of this conic — try K closer to −1 or smaller obj_d)`, '');
                         return;
                     }
-                    // The existing simulator uses a CENTERED frame: M1 vertex at
-                    // vy1 = −dsep/2, M2 vertex at vy2 = +dsep/2. The conic-sag
-                    // calculation returns a lift relative to M1's vertex, so the
-                    // absolute base y is vy1 + lift. All sample points and the
-                    // collision check below live in the same absolute frame.
                     const yBase = p.vy1 + liftFromVertex;
                     const yTop = yBase + p.h_obj;
                     if (yTop >= p.vy2 - 1) {
@@ -4700,10 +4744,10 @@
                         return;
                     }
 
-                    // 9-point sample: 3 columns × 3 rows. Bottom row sits at y_base
-                    // (the rigid object is lifted by rim contact); top row at
-                    // y_base + h_obj. Center column at x=0, side columns at the
-                    // contact rim x = ±obj_d/2.
+                    // 9-point sample: 3 columns × 3 rows. Rigid object lifts as
+                    // one unit so the centre base point sits at the same y as
+                    // the rim contact points (matches your "cube on a bowl"
+                    // intuition: edges touch, centre suspended above vertex).
                     const cols = [-xRim, 0, +xRim];
                     const rows = [yBase, yBase + p.h_obj / 2, yTop];
                     const samples = [];
@@ -4718,13 +4762,11 @@
                         const escapedRays = [];
                         const exitAngles = [];
                         for (let i = 0; i < NR; i++) {
-                            // Upper hemisphere fan: rays emitted in directions that
-                            // hit M2 (object is below M2). −81° to +81° from +y.
                             const theta = (-0.45 + 0.9 * (i / (NR - 1))) * Math.PI;
                             const dx = Math.sin(theta), dy = Math.cos(theta);
                             totalTraced++;
-                            const r = traceRayConic(sx, sy, dx, dy, p);
-                            if (r.escaped) {
+                            const r = traceRay(sx, sy, dx, dy, p);
+                            if (r.escaped && r.exitDir) {
                                 totalEscaped++;
                                 escapedRays.push({ point: r.exitPoint, dir: r.exitDir });
                                 exitAngles.push(Math.atan2(r.exitDir[0], r.exitDir[1]) * 180 / Math.PI);
@@ -4763,8 +4805,8 @@
                     const sharpOK = maxSpotRMS < 5;
                     const visibleOK = intersectCone > 0;
                     const status = (sharpOK && visibleOK) ? 'pass' : (visibleOK ? 'warn' : 'fail');
-                    const summary = `K₁ = ${K1.toFixed(2)} · max spot RMS = ${maxSpotRMS.toFixed(2)} mm · intersect viewing cone = ${intersectCone.toFixed(1)}° · escaped ${totalEscaped}/${totalTraced} rays · ${blind ? 'one or more sample points invisible from any angle' : 'all 9 sample points visible'}`;
-                    const paramsLine = `R₁ = ${R1.toFixed(1)} mm (= 2·f₁) · vy1 = ${p.vy1.toFixed(1)} mm · base y₀ = ${yBase.toFixed(2)} mm (lift ${liftFromVertex.toFixed(2)} mm above M1) · object top y = ${yTop.toFixed(2)} mm · vy2 = ${p.vy2.toFixed(1)} mm · 9 sample points`;
+                    const summary = `K₁ = ${p.K1.toFixed(2)} · max spot RMS = ${maxSpotRMS.toFixed(2)} mm · intersect viewing cone (full width) = ${intersectCone.toFixed(1)}° · escaped ${totalEscaped}/${totalTraced} rays · ${blind ? 'one or more sample points invisible from any angle' : 'all 9 sample points visible'}`;
+                    const paramsLine = `R₁ = ${p.R1.toFixed(1)} mm (= 2·f₁) · vy1 = ${p.vy1.toFixed(1)} mm · base y₀ = ${yBase.toFixed(2)} mm (lift ${liftFromVertex.toFixed(2)} mm above M1) · object top y = ${yTop.toFixed(2)} mm · vy2 = ${p.vy2.toFixed(1)} mm · 9 sample points`;
                     showConicStatus(status, summary, paramsLine);
                 };
 
