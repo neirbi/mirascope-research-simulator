@@ -553,116 +553,125 @@
         }
 
         /* ===========================================
-           CURRENT BEST DESIGN — spec card under the hero
-           Single source of truth for "the winning geometry today."
-           Lives directly under the hero so anyone landing on the page
-           sees the headline result without scrolling. Updated whenever
-           a new optimizer run produces a better answer.
-
-           Layout: a single card with a heading row + an auto-fitting
-           grid of spec tiles. Each tile is one number with a label,
-           an optional comparison badge ("vs. toy"), and an optional
-           highlight (for the shape finding).
-
-           Responsive: auto-fit + minmax collapses cleanly from
-           desktop multi-column to single-column on mobile. Uses CSS
-           custom properties so theme switching just works.
+           CURRENT BEST DESIGN — compact spec strip under the hero.
+           Visual register matches the credits list (small text, list
+           rhythm, minimal chrome). A small SVG schematic of the winning
+           mirror profile sits beside the spec list — silhouette only,
+           no rays, no labels — so the shape of the result is legible
+           at a glance. Theme-token colors throughout so dark mode is
+           automatic.
            =========================================== */
         .best-design {
             margin-block: 0 var(--space-xl);
             padding-inline: var(--space-md);
         }
         .best-design__card {
-            max-width: 64rem;
+            max-width: 52rem;
             margin-inline: auto;
-            padding: clamp(1.25rem, 2vw + 0.5rem, 2rem);
+            padding: 1rem 1.25rem;
             border: 1px solid var(--color-border-subtle);
-            border-radius: 1rem;
+            border-radius: 0.75rem;
             background: var(--color-bg-surface);
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+            display: grid;
+            grid-template-columns: minmax(7rem, 9rem) 1fr;
+            gap: 1rem 1.25rem;
+            align-items: center;
+        }
+        .best-design__svg {
+            width: 100%;
+            height: auto;
+            display: block;
+            color: var(--color-text-secondary);
+        }
+        .best-design__svg .bd-mirror {
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 4;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        .best-design__svg .bd-m1 {
+            stroke: var(--color-accent);
+        }
+        .best-design__svg .bd-axis {
+            stroke: var(--color-text-tertiary);
+            stroke-width: 1;
+            stroke-dasharray: 4 4;
+            opacity: 0.5;
+        }
+        .best-design__list {
+            margin: 0;
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            column-gap: 0.875rem;
+            row-gap: 0.25rem;
+            font-size: 0.9375rem;
+            line-height: 1.55;
+        }
+        .best-design__list dt {
+            color: var(--color-text-tertiary);
+            font-size: 0.8125rem;
+            font-weight: var(--weight-medium);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            align-self: baseline;
+            padding-top: 0.15em;
+        }
+        .best-design__list dd {
+            margin: 0;
+            color: var(--color-text-primary);
+            font-variant-numeric: tabular-nums;
+        }
+        .best-design__sub {
+            color: var(--color-text-tertiary);
+            font-size: 0.8125rem;
+            margin-left: 0.5em;
+        }
+        .best-design__gain {
+            display: inline-block;
+            margin-left: 0.5em;
+            padding: 0 0.45em;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: var(--weight-semibold);
+            font-variant-numeric: tabular-nums;
+            color: var(--color-accent-strong);
+            background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+            border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+            vertical-align: 1px;
         }
         .best-design__head {
+            grid-column: 1 / -1;
             display: flex;
             flex-wrap: wrap;
             align-items: baseline;
             justify-content: space-between;
-            gap: 0.5rem 1rem;
-            margin-bottom: clamp(1rem, 1.5vw, 1.5rem);
+            gap: 0.25rem 0.75rem;
+            padding-bottom: 0.25rem;
+            border-bottom: 1px solid var(--color-border-subtle);
+            margin-bottom: 0.25rem;
         }
         .best-design__title {
-            font-size: var(--text-lg);
+            font-size: 0.9375rem;
             font-weight: var(--weight-semibold);
             color: var(--color-text-primary);
             margin: 0;
-            letter-spacing: -0.01em;
         }
-        .best-design__sub {
-            font-size: var(--text-sm);
-            color: var(--color-text-secondary);
-            margin: 0;
-        }
-        .best-design__grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-            gap: clamp(0.75rem, 1.5vw, 1.25rem);
-        }
-        .best-design__cell {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-            padding: 0.875rem 1rem;
-            border-radius: 0.625rem;
-            background: var(--color-bg-primary);
-            border: 1px solid var(--color-border-subtle);
-        }
-        .best-design__label {
-            font-size: var(--text-xs);
-            font-weight: var(--weight-medium);
+        .best-design__date {
+            font-size: 0.8125rem;
             color: var(--color-text-tertiary);
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-        .best-design__value {
-            font-size: var(--text-lg);
-            font-weight: var(--weight-semibold);
-            color: var(--color-text-primary);
             font-variant-numeric: tabular-nums;
-            line-height: 1.2;
+            font-family: var(--font-mono);
         }
-        .best-design__sub-value {
-            font-size: var(--text-sm);
-            color: var(--color-text-secondary);
-            font-variant-numeric: tabular-nums;
-        }
-        .best-design__badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.25rem;
-            margin-top: 0.25rem;
-            padding: 0.125rem 0.5rem;
-            border-radius: 999px;
-            font-size: var(--text-xs);
-            font-weight: var(--weight-semibold);
-            font-variant-numeric: tabular-nums;
-            width: fit-content;
-        }
-        .best-design__badge--gain {
-            color: var(--color-accent-strong);
-            background: color-mix(in srgb, var(--color-accent) 14%, transparent);
-            border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
-        }
-        .best-design__badge--new {
-            color: var(--color-accent-strong);
-            background: color-mix(in srgb, var(--color-accent) 14%, transparent);
-            border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
-        }
-        .best-design__cell--featured {
-            background: color-mix(in srgb, var(--color-accent) 6%, var(--color-bg-primary));
-            border-color: color-mix(in srgb, var(--color-accent) 30%, var(--color-border-subtle));
-        }
-        @media (prefers-reduced-motion: no-preference) {
-            .best-design__cell { transition: transform 120ms ease, border-color 120ms ease; }
-            .best-design__cell:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--color-accent) 25%, var(--color-border-subtle)); }
+        @media (max-width: 38rem) {
+            .best-design__card {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }
+            .best-design__svg {
+                max-width: 12rem;
+                margin-inline: auto;
+            }
         }
 
         /* ===========================================
@@ -1856,57 +1865,38 @@
 
         <!-- ===========================================
              CURRENT BEST DESIGN — winning geometry from the latest
-             optimizer run, in plain units. Single source of truth.
-             Update the numbers here when a new optimization wins.
+             optimizer run. Compact spec strip + a silhouette of the
+             two mirrors (green M1 prolate ellipsoid, grey M2 parabola)
+             at the actual winning ratios — no rays, no labels, just
+             the shape of the device.
              =========================================== -->
         <section class="best-design" aria-labelledby="best-design-title">
             <div class="best-design__card">
                 <div class="best-design__head">
-                    <h2 id="best-design-title" class="best-design__title">Current best design <span style="font-weight: var(--weight-regular); color: var(--color-text-secondary);">— 2026-05-10</span></h2>
-                    <p class="best-design__sub">Optimizer output for a 50&nbsp;mm cube · scale-invariant gates (image&nbsp;≥&nbsp;object, blur&nbsp;≤&nbsp;5%, cone&nbsp;≥&nbsp;60°)</p>
+                    <h2 id="best-design-title" class="best-design__title">Current best design — 50 mm cube</h2>
+                    <span class="best-design__date">2026-05-10</span>
                 </div>
-                <div class="best-design__grid">
 
-                    <div class="best-design__cell">
-                        <span class="best-design__label">Diameter</span>
-                        <span class="best-design__value">36.3 cm</span>
-                        <span class="best-design__sub-value">14.3 in · 2.6× toy</span>
-                    </div>
+                <svg class="best-design__svg" viewBox="-200 -85 400 170" preserveAspectRatio="xMidYMid meet" aria-label="Silhouette of M1 (prolate ellipsoid, accent color) and M2 (parabola) at the winning geometry">
+                    <line class="bd-axis" x1="0" y1="-80" x2="0" y2="80"/>
+                    <path class="bd-mirror bd-m1" d="M -181.7 -25.0 L -166.6 -8.2 L -151.4 6.4 L -136.3 19.0 L -121.1 30.0 L -106.0 39.4 L -90.8 47.3 L -75.7 53.9 L -60.6 59.2 L -45.4 63.3 L -30.3 66.2 L -15.1 67.9 L 0.0 68.5 L 15.1 67.9 L 30.3 66.2 L 45.4 63.3 L 60.6 59.2 L 75.7 53.9 L 90.8 47.3 L 106.0 39.4 L 121.1 30.0 L 136.3 19.0 L 151.4 6.4 L 166.6 -8.2 L 181.7 -25.0"/>
+                    <path class="bd-mirror" d="M -181.7 -24.8 L -164.0 -32.9 L -146.3 -40.2 L -128.6 -46.6 L -110.8 -52.2 L -93.1 -57.0 L -75.4 -61.0 L -57.7 -64.1 L -40.0 -66.4 M 40.0 -66.4 L 57.7 -64.1 L 75.4 -61.0 L 93.1 -57.0 L 110.8 -52.2 L 128.6 -46.6 L 146.3 -40.2 L 164.0 -32.9 L 181.7 -24.8"/>
+                </svg>
 
-                    <div class="best-design__cell">
-                        <span class="best-design__label">Height (M1↔M2)</span>
-                        <span class="best-design__value">13.7 cm</span>
-                        <span class="best-design__sub-value">5.4 in · 3.0× toy</span>
-                    </div>
-
-                    <div class="best-design__cell">
-                        <span class="best-design__label">Object size</span>
-                        <span class="best-design__value">50 × 50 mm</span>
-                        <span class="best-design__sub-value">cube · toy frog 35 mm Ø</span>
-                        <span class="best-design__badge best-design__badge--gain">+43% diameter vs toy</span>
-                    </div>
-
-                    <div class="best-design__cell">
-                        <span class="best-design__label">Image</span>
-                        <span class="best-design__value">54 mm Ø</span>
-                        <span class="best-design__sub-value">1.09× object · 4.5% blur</span>
-                    </div>
-
-                    <div class="best-design__cell">
-                        <span class="best-design__label">Viewing angle</span>
-                        <span class="best-design__value">68.5°</span>
-                        <span class="best-design__sub-value">max half-angle · toy 41°</span>
-                        <span class="best-design__badge best-design__badge--gain">+67% vs toy</span>
-                    </div>
-
-                    <div class="best-design__cell best-design__cell--featured">
-                        <span class="best-design__label">M1 shape</span>
-                        <span class="best-design__value">Prolate ellipsoid</span>
-                        <span class="best-design__sub-value">K₁ = −0.5 · f₁/f₂ = 0.53</span>
-                        <span class="best-design__badge best-design__badge--new">NEW: not a parabola</span>
-                    </div>
-
-                </div>
+                <dl class="best-design__list">
+                    <dt>Diameter</dt>
+                    <dd>36.3 cm <span class="best-design__sub">14.3 in · 2.6× toy</span></dd>
+                    <dt>Height</dt>
+                    <dd>13.7 cm <span class="best-design__sub">5.4 in · M1↔M2</span></dd>
+                    <dt>Object</dt>
+                    <dd>50 × 50 mm cube <span class="best-design__gain">+43% Ø vs toy</span></dd>
+                    <dt>Image</dt>
+                    <dd>54 mm Ø <span class="best-design__sub">1.09× · 4.5% blur</span></dd>
+                    <dt>Viewing</dt>
+                    <dd>68.5° half-angle <span class="best-design__gain">+67% vs toy</span></dd>
+                    <dt>M1 shape</dt>
+                    <dd>Prolate ellipsoid <span class="best-design__sub">K₁ = −0.5 · f₁/f₂ = 0.53</span></dd>
+                </dl>
             </div>
         </section>
 
