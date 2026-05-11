@@ -2439,63 +2439,48 @@
                     <details class="roadmap-phase" name="roadmap">
                         <summary class="roadmap-phase__head">
                             <span class="roadmap-phase__num">Phase 3</span>
-                            <span class="roadmap-phase__title">Path geometry — multi-bounce, aperture variants</span>
+                            <span class="roadmap-phase__title">Mirror configuration variants</span>
                             <span class="roadmap-phase__status">not started</span>
-                            <span class="roadmap-phase__count">0 / 3</span>
+                            <span class="roadmap-phase__count">0 / 4</span>
                             <svg class="roadmap-phase__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
                         </summary>
                         <ul class="roadmap-checklist">
-                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>4-bounce paths — Adhya &amp; Noé describe secondary images at d_sep ≠ f. Test with our trace. <em>Note: US Patent 8,210,694 B1 already claims a 3- or 5-reflection variable-separation concave-mirror device with unequal focal lengths — prior art on the architecture, not on specific optimized geometries.</em></span></li>
-                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>6-bounce and 8-bounce paths — increasingly distorted secondary images per the paper.</span></li>
-                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Off-center aperture positions — does shifted aperture trade viewing angle for image position?</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Tilted mirror axes — mirrors angled toward each other (V-shape). Does it move the viewing cone or shift image/device ratio?</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Lateral offset — top mirror shifted off-axis from bottom. Effect on viewing angle and scale.</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Hybrid: one flat, one parabolic. Effect on viewing angle and scale.</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Unequal mirror diameters — top and bottom different sizes. Effect on viewing cone and image/device ratio.</span></li>
                         </ul>
                     </details>
 
                     <details class="roadmap-phase" name="roadmap">
                         <summary class="roadmap-phase__head">
                             <span class="roadmap-phase__num">Phase 4</span>
-                            <span class="roadmap-phase__title">Mirror configuration variants</span>
-                            <span class="roadmap-phase__status">not started</span>
-                            <span class="roadmap-phase__count">0 / 5</span>
-                            <svg class="roadmap-phase__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
-                        </summary>
-                        <ul class="roadmap-checklist">
-                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Tilted mirror axes — mirrors angled toward each other (V-shape).</span></li>
-                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Lateral offset — top mirror shifted off-axis from bottom.</span></li>
-                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Hybrid: one flat, one parabolic.</span></li>
-                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Unequal mirror diameters — top and bottom different sizes.</span></li>
-                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Sensitivity analysis — quantify how ±1% / ±5% manufacturing tolerance shifts viewing angle for the asymmetric optimum.</span></li>
-                        </ul>
-                    </details>
-
-                    <details class="roadmap-phase" name="roadmap">
-                        <summary class="roadmap-phase__head">
-                            <span class="roadmap-phase__num">Phase 5</span>
                             <span class="roadmap-phase__title">Non-parabolic shapes</span>
                             <span class="roadmap-phase__status">requires new sim</span>
                             <span class="roadmap-phase__count">0 / 4</span>
                             <svg class="roadmap-phase__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
                         </summary>
                         <ul class="roadmap-checklist">
-                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Spherical mirrors — manufacturable, easier to machine. How much performance is lost?</span></li>
-                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Elliptical mirrors — different conic section.</span></li>
-                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Freeform surface — control points, optimizer finds shape directly.</span></li>
-                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Composite surface — parabolic center, different curve at rim.</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Spherical mirrors — different conic section. How much viewing angle and image/device ratio is lost vs parabolic?</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Elliptical mirrors — different conic section. Effect on viewing angle and scale.</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Freeform surface — control points, optimizer finds shape directly. Can it push the Pareto frontier on viewing angle and scale beyond parabolic?</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Composite surface — parabolic center, different curve at rim. Trades sharpness at the rim for wider viewing angle.</span></li>
                         </ul>
                     </details>
 
                     <details class="roadmap-phase" name="roadmap">
                         <summary class="roadmap-phase__head">
-                            <span class="roadmap-phase__num">Bench</span>
-                            <span class="roadmap-phase__title">Empirical validation (out of software scope)</span>
+                            <span class="roadmap-phase__num">Phase 5</span>
+                            <span class="roadmap-phase__title">Two-objective Pareto optimization</span>
                             <span class="roadmap-phase__status">not started</span>
-                            <span class="roadmap-phase__count">0 / 3</span>
+                            <span class="roadmap-phase__count">0 / 4</span>
                             <svg class="roadmap-phase__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
                         </summary>
                         <ul class="roadmap-checklist">
-                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Cross-check against established 3D ray tracer (Optiland or Zemax) at one specific geometry. Closes the 2D-vs-3D question for cylindrical objects.</span></li>
-                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Build one prototype based on the symmetric optimizer recommendation. Measure actual image position, magnification, viewing angle. Compare to predictions.</span></li>
-                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Build asymmetric prototype as control — confirm or refute the "knife-edge manufacturing sensitivity" finding from Phase 2.</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Make image-to-device ratio a first-class output in the simulator readout (math-rim and truncated-rim variants).</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Replace the single-scalar objective with a Pareto search over (intersect viewing angle, image/device ratio).</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Treat sharpness budget at viewing distance as a hard constraint — designs below the wall are excluded, not penalized.</span></li>
+                            <li class="roadmap-checklist__item"><span class="roadmap-checklist__icon">☐</span><span>Output the Pareto frontier as a curve the user picks from, not a single winner.</span></li>
                         </ul>
                     </details>
 
@@ -2503,17 +2488,15 @@
                         <summary class="roadmap-phase__head">
                             <span class="roadmap-phase__num">Open</span>
                             <span class="roadmap-phase__title">Open questions worth investigating</span>
-                            <span class="roadmap-phase__status">6 questions</span>
+                            <span class="roadmap-phase__status">4 questions</span>
                             <span class="roadmap-phase__count">—</span>
                             <svg class="roadmap-phase__chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"/></svg>
                         </summary>
                         <ul class="roadmap-checklist">
-                            <li class="roadmap-checklist__item roadmap-checklist__item--open"><span class="roadmap-checklist__icon">?</span><span>Does the optimum aperture ratio truly vary monotonically with sharpness target across the full 1-60 arcmin range, or are there regime breaks?</span></li>
+                            <li class="roadmap-checklist__item roadmap-checklist__item--open"><span class="roadmap-checklist__icon">?</span><span>Does the optimum aperture ratio vary monotonically with sharpness target across the full 1-60 arcmin range, or are there regime breaks?</span></li>
                             <li class="roadmap-checklist__item roadmap-checklist__item--open"><span class="roadmap-checklist__icon">?</span><span>What's the absolute maximum intersect viewing angle achievable in any parabolic configuration, regardless of object size or sharpness?</span></li>
-                            <li class="roadmap-checklist__item roadmap-checklist__item--open"><span class="roadmap-checklist__icon">?</span><span>Do non-parabolic shapes (spherical, elliptical, freeform) preserve the asymmetry-helps-loose-sharpness pattern we observe?</span></li>
+                            <li class="roadmap-checklist__item roadmap-checklist__item--open"><span class="roadmap-checklist__icon">?</span><span>Do non-parabolic shapes preserve the asymmetry-helps-loose-sharpness pattern we observe in the parabolic family?</span></li>
                             <li class="roadmap-checklist__item roadmap-checklist__item--open"><span class="roadmap-checklist__icon">?</span><span>Is there a closed-form solution for asymmetric mirascope's "muscular pig" magnification at h_obj &gt; 0?</span></li>
-                            <li class="roadmap-checklist__item roadmap-checklist__item--open"><span class="roadmap-checklist__icon">?</span><span>At what manufacturing tolerance does the asymmetric advantage disappear into noise?</span></li>
-                            <li class="roadmap-checklist__item roadmap-checklist__item--open"><span class="roadmap-checklist__icon">?</span><span>Could the asymmetric multi-bounce findings (Phase 3 + US 8,210,694 B1 territory) yield image-relocation gains beyond what the 2-bounce parabolic mirascope's Adhya-Noé limits allow?</span></li>
                         </ul>
                     </details>
 
