@@ -4683,13 +4683,20 @@
                     const p = { ...params, K1, R1 };
 
                     const xRim = p.obj_d / 2;
-                    const yBase = conicSag(xRim, R1, K1);
-                    if (!Number.isFinite(yBase)) {
+                    const liftFromVertex = conicSag(xRim, R1, K1);
+                    if (!Number.isFinite(liftFromVertex)) {
                         showConicStatus('fail', `M1 conic is invalid at x = ${xRim.toFixed(1)} mm (object width exceeds the rim radius of this conic — try K closer to −1 or smaller obj_d)`, '');
                         return;
                     }
-                    if (yBase + p.h_obj >= p.vy2 - 1) {
-                        showConicStatus('fail', `object top (y = ${(yBase + p.h_obj).toFixed(1)} mm) collides with M2 (vy2 = ${p.vy2.toFixed(1)} mm) — increase d_sep or reduce h_obj`, '');
+                    // The existing simulator uses a CENTERED frame: M1 vertex at
+                    // vy1 = −dsep/2, M2 vertex at vy2 = +dsep/2. The conic-sag
+                    // calculation returns a lift relative to M1's vertex, so the
+                    // absolute base y is vy1 + lift. All sample points and the
+                    // collision check below live in the same absolute frame.
+                    const yBase = p.vy1 + liftFromVertex;
+                    const yTop = yBase + p.h_obj;
+                    if (yTop >= p.vy2 - 1) {
+                        showConicStatus('fail', `object top (y = ${yTop.toFixed(1)} mm) collides with M2 (vy2 = ${p.vy2.toFixed(1)} mm) — increase d_sep or reduce h_obj`, '');
                         return;
                     }
 
@@ -4698,7 +4705,7 @@
                     // y_base + h_obj. Center column at x=0, side columns at the
                     // contact rim x = ±obj_d/2.
                     const cols = [-xRim, 0, +xRim];
-                    const rows = [yBase, yBase + p.h_obj / 2, yBase + p.h_obj];
+                    const rows = [yBase, yBase + p.h_obj / 2, yTop];
                     const samples = [];
                     for (const yy of rows) for (const xx of cols) samples.push([xx, yy]);
 
@@ -4757,7 +4764,7 @@
                     const visibleOK = intersectCone > 0;
                     const status = (sharpOK && visibleOK) ? 'pass' : (visibleOK ? 'warn' : 'fail');
                     const summary = `K₁ = ${K1.toFixed(2)} · max spot RMS = ${maxSpotRMS.toFixed(2)} mm · intersect viewing cone = ${intersectCone.toFixed(1)}° · escaped ${totalEscaped}/${totalTraced} rays · ${blind ? 'one or more sample points invisible from any angle' : 'all 9 sample points visible'}`;
-                    const paramsLine = `R₁ = ${R1.toFixed(1)} mm (= 2·f₁) · base lift y₀ = ${yBase.toFixed(2)} mm · object top y = ${(yBase + p.h_obj).toFixed(2)} mm · vy2 = ${p.vy2.toFixed(1)} mm · 9 sample points (3 cols × 3 rows)`;
+                    const paramsLine = `R₁ = ${R1.toFixed(1)} mm (= 2·f₁) · vy1 = ${p.vy1.toFixed(1)} mm · base y₀ = ${yBase.toFixed(2)} mm (lift ${liftFromVertex.toFixed(2)} mm above M1) · object top y = ${yTop.toFixed(2)} mm · vy2 = ${p.vy2.toFixed(1)} mm · 9 sample points`;
                     showConicStatus(status, summary, paramsLine);
                 };
 
