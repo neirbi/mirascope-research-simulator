@@ -2103,12 +2103,25 @@
                                     <input type="number" id="sim-bounces" value="2" step="1" min="2" max="10">
                                 </div>
                             </div>
+                            <!-- Conic constant K for M1. Parameterises the conic
+                                 family so a single search covers sphere (K=0),
+                                 parabola (K=-1, baseline — must reproduce the
+                                 existing trace exactly when selected), prolate
+                                 ellipsoid (-1<K<0) and hyperboloid (K<-1). -->
+                            <div class="sim__field">
+                                <label for="sim-k1">K<sub>1</sub> (M1 conic constant)</label>
+                                <input type="range" class="sim__slider" id="sim-k1-range" min="-3" max="0" step="0.05" value="-1" aria-label="M1 conic constant K">
+                                <div class="sim__input-wrap">
+                                    <input type="number" id="sim-k1" value="-1" step="0.05" min="-3" max="0">
+                                </div>
+                            </div>
                         </div>
 
                         <div class="sim__btn-row">
                             <button type="button" class="sim__run" id="sim-run">Run Simulation</button>
                             <button type="button" class="sim__btn-secondary" id="sim-validate">Validate Physics</button>
                             <button type="button" class="sim__btn-secondary" id="sim-optimize">Optimize Shape</button>
+                            <button type="button" class="sim__btn-secondary" id="sim-conic">Conic M1 Search</button>
                             <label class="sim__opt-toggle" style="display:inline-flex;align-items:center;gap:0.5rem;font-size:0.875rem;color:var(--color-text-secondary);cursor:pointer;">
                                 <input type="checkbox" id="sim-symmetric" style="margin:0;cursor:pointer;">
                                 Symmetric (f₁ = f₂ = d_sep)
@@ -2131,6 +2144,27 @@
                                 </div>
                                 <div class="sim__val-summary-row">
                                     <span id="sim-opt-params">—</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Conic-mode readout. Hidden until "Conic M1 Search"
+                             has run. M1 is generalised to a conic of revolution
+                             y(x) = x²/(R + √(R² − (1+K)x²)); the object rests on
+                             M1 (rim contact), so its base lifts with K and obj_d.
+                             Reports 9-point spot RMS + intersect viewing cone. -->
+                        <div class="sim__validator" id="sim-conic-readout" hidden>
+                            <div class="sim__val-test">
+                                <div class="sim__val-summary-row">
+                                    <span class="sim__val-label">Conic M1</span>
+                                    <span class="sim__val-status" id="sim-conic-status">—</span>
+                                    <span class="sim__val-label" style="margin-left:auto;">9-point sample · conic family</span>
+                                </div>
+                                <div class="sim__val-summary-row">
+                                    <span id="sim-conic-summary">—</span>
+                                </div>
+                                <div class="sim__val-summary-row">
+                                    <span id="sim-conic-params">—</span>
                                 </div>
                             </div>
                         </div>
@@ -4537,6 +4571,196 @@
                     slider.style.setProperty('--fill', pct + '%');
                 };
 
+                // =================================================
+                // CONIC M1 MODE — generalises M1 from parabola to the
+                // full conic-of-revolution family parameterised by K.
+                // Implicit surface: (1+K)·u² − 2R·s·u + x² = 0,  u = (y − vy).
+                // K = −1 reproduces the parabola y = x²/(4f) when R = 2f (regression
+                // check: with K=−1 the intersect/normal must match intersectM1 /
+                // surfaceNormal bit-for-bit). K = 0 is a sphere of radius R, with
+                // classical spherical aberration — the cost the parabola was
+                // historically chosen to avoid. M2 stays parabolic; object rests
+                // on M1's rim so its base lifts with sag(obj_d/2; R, K).
+                // =================================================
+                const conicSag = (xRim, R, K) => {
+                    const k1 = 1 + K;
+                    const disc = R * R - k1 * xRim * xRim;
+                    if (disc < 0) return NaN;
+                    return (xRim * xRim) / (R + Math.sqrt(disc));
+                };
+
+                // Implicit-form ray–conic intersection. Mirrors the structure of
+                // intersectParabola (Vieta-stable quadratic, smallest valid root)
+                // so the conic and parabola code paths agree at K=−1 by construction.
+                const intersectConic = (ox, oy, dx, dy, R, K, s, vy, tMin, absMin, absMax) => {
+                    const k1 = 1 + K;
+                    const u0 = oy - vy;
+                    const u1 = dy;
+                    const A = k1 * u1 * u1 + dx * dx;
+                    const B = 2 * (k1 * u0 * u1 - R * s * u1 + ox * dx);
+                    const C = k1 * u0 * u0 - 2 * R * s * u0 + ox * ox;
+                    if (Math.abs(A) < 1e-12) {
+                        if (Math.abs(B) < 1e-12) return null;
+                        const t = -C / B;
+                        if (t <= tMin) return null;
+                        const ax = Math.abs(ox + t * dx);
+                        return (ax >= absMin && ax <= absMax) ? t : null;
+                    }
+                    const disc = B * B - 4 * A * C;
+                    if (disc < 0) return null;
+                    const sq = Math.sqrt(disc);
+                    const t1 = (B > 0) ? (-B - sq) / (2 * A) : (-B + sq) / (2 * A);
+                    const t2 = C / (A * t1);
+                    let best = Infinity;
+                    for (const t of [t1, t2]) {
+                        if (t > tMin && t < best) {
+                            const ax = Math.abs(ox + t * dx);
+                            if (ax >= absMin && ax <= absMax) best = t;
+                        }
+                    }
+                    return Number.isFinite(best) ? best : null;
+                };
+
+                // Surface normal from implicit gradient. Reflection is sign-
+                // invariant (r = d − 2(d·n)n is the same for n and −n), so the
+                // overall orientation doesn't affect physics — we only need a
+                // consistent unit vector along the surface normal.
+                const conicNormal = (x, y, R, K, s, vy) => {
+                    const nx = -s * 2 * x;
+                    const ny = -s * (2 * (1 + K) * (y - vy) - 2 * R * s);
+                    const len = Math.sqrt(nx * nx + ny * ny);
+                    return [nx / len, ny / len];
+                };
+
+                // Trace one ray through conic M1 + parabolic M2. Mirrors traceRay
+                // but swaps M1's intersect/normal for the conic version. M2 is
+                // unchanged: the search is "what shape for M1 holds the image
+                // together while widening the cone."
+                const traceRayConic = (ox, oy, dx, dy, p) => {
+                    let x = ox, y = oy, vx = dx, vy = dy;
+                    for (let bounce = 0; bounce < p.nbounces; bounce++) {
+                        const t1 = intersectConic(x, y, vx, vy, p.R1, p.K1, +1, p.vy1, EPS, 0, p.halfW);
+                        const t2 = intersectM2(x, y, vx, vy, p, EPS);
+                        let t = null, mirror = null;
+                        if (t1 !== null && (t2 === null || t1 < t2)) { t = t1; mirror = 1; }
+                        else if (t2 !== null) { t = t2; mirror = 2; }
+                        else return { escaped: false };
+                        const hitX = x + t * vx;
+                        const hitY = y + t * vy;
+                        let nx, ny;
+                        if (mirror === 1) {
+                            [nx, ny] = conicNormal(hitX, hitY, p.R1, p.K1, +1, p.vy1);
+                        } else {
+                            [nx, ny] = surfaceNormal(hitX, p.f2, -1);
+                        }
+                        [vx, vy] = reflect(vx, vy, nx, ny);
+                        const dlen = Math.sqrt(vx * vx + vy * vy);
+                        vx /= dlen; vy /= dlen;
+                        x = hitX; y = hitY;
+                    }
+                    const tBlocked = intersectM2(x, y, vx, vy, p, EPS);
+                    if (tBlocked !== null) return { escaped: false };
+                    const exitX = rayCrossesY(x, y, vx, vy, p.vy2);
+                    if (exitX === null || Math.abs(exitX) >= p.a / 2) return { escaped: false };
+                    return { escaped: true, exitPoint: [exitX, p.vy2], exitDir: [vx, vy] };
+                };
+
+                const showConicStatus = (status, summary, paramsLine) => {
+                    const wrap = document.getElementById('sim-conic-readout');
+                    wrap.hidden = false;
+                    const badge = status === 'pass' ? '✓ PASS' : status === 'warn' ? '⚠ WARN' : '✗ FAIL';
+                    const statusEl = document.getElementById('sim-conic-status');
+                    statusEl.textContent = badge;
+                    statusEl.dataset.status = status;
+                    document.getElementById('sim-conic-summary').textContent = summary;
+                    document.getElementById('sim-conic-params').textContent = paramsLine;
+                };
+
+                const runConic = () => {
+                    const params = readParams();
+                    const K1 = +document.getElementById('sim-k1').value;
+                    const R1 = 2 * params.f1;
+                    const p = { ...params, K1, R1 };
+
+                    const xRim = p.obj_d / 2;
+                    const yBase = conicSag(xRim, R1, K1);
+                    if (!Number.isFinite(yBase)) {
+                        showConicStatus('fail', `M1 conic is invalid at x = ${xRim.toFixed(1)} mm (object width exceeds the rim radius of this conic — try K closer to −1 or smaller obj_d)`, '');
+                        return;
+                    }
+                    if (yBase + p.h_obj >= p.vy2 - 1) {
+                        showConicStatus('fail', `object top (y = ${(yBase + p.h_obj).toFixed(1)} mm) collides with M2 (vy2 = ${p.vy2.toFixed(1)} mm) — increase d_sep or reduce h_obj`, '');
+                        return;
+                    }
+
+                    // 9-point sample: 3 columns × 3 rows. Bottom row sits at y_base
+                    // (the rigid object is lifted by rim contact); top row at
+                    // y_base + h_obj. Center column at x=0, side columns at the
+                    // contact rim x = ±obj_d/2.
+                    const cols = [-xRim, 0, +xRim];
+                    const rows = [yBase, yBase + p.h_obj / 2, yBase + p.h_obj];
+                    const samples = [];
+                    for (const yy of rows) for (const xx of cols) samples.push([xx, yy]);
+
+                    const NR = Math.max(16, p.nrays * 8);
+                    let maxSpotRMS = 0;
+                    const perPointCones = [];
+                    let totalEscaped = 0, totalTraced = 0;
+
+                    for (const [sx, sy] of samples) {
+                        const escapedRays = [];
+                        const exitAngles = [];
+                        for (let i = 0; i < NR; i++) {
+                            // Upper hemisphere fan: rays emitted in directions that
+                            // hit M2 (object is below M2). −81° to +81° from +y.
+                            const theta = (-0.45 + 0.9 * (i / (NR - 1))) * Math.PI;
+                            const dx = Math.sin(theta), dy = Math.cos(theta);
+                            totalTraced++;
+                            const r = traceRayConic(sx, sy, dx, dy, p);
+                            if (r.escaped) {
+                                totalEscaped++;
+                                escapedRays.push({ point: r.exitPoint, dir: r.exitDir });
+                                exitAngles.push(Math.atan2(r.exitDir[0], r.exitDir[1]) * 180 / Math.PI);
+                            }
+                        }
+                        if (escapedRays.length >= 2) {
+                            const c = findConvergence(escapedRays);
+                            if (c) {
+                                let sumSq = 0;
+                                for (const r of escapedRays) {
+                                    const [px, py] = r.point;
+                                    const [rvx, rvy] = r.dir;
+                                    const ex = c[0] - px, ey = c[1] - py;
+                                    const d = ex * rvy - ey * rvx;
+                                    sumSq += d * d;
+                                }
+                                const rms = Math.sqrt(sumSq / escapedRays.length);
+                                if (rms > maxSpotRMS) maxSpotRMS = rms;
+                            }
+                            const lo = Math.min(...exitAngles);
+                            const hi = Math.max(...exitAngles);
+                            perPointCones.push([lo, hi]);
+                        } else {
+                            perPointCones.push(null);
+                        }
+                    }
+
+                    let visLo = -Infinity, visHi = +Infinity, blind = false;
+                    for (const c of perPointCones) {
+                        if (c === null) { blind = true; break; }
+                        if (c[0] > visLo) visLo = c[0];
+                        if (c[1] < visHi) visHi = c[1];
+                    }
+                    const intersectCone = (!blind && visHi > visLo) ? (visHi - visLo) : 0;
+
+                    const sharpOK = maxSpotRMS < 5;
+                    const visibleOK = intersectCone > 0;
+                    const status = (sharpOK && visibleOK) ? 'pass' : (visibleOK ? 'warn' : 'fail');
+                    const summary = `K₁ = ${K1.toFixed(2)} · max spot RMS = ${maxSpotRMS.toFixed(2)} mm · intersect viewing cone = ${intersectCone.toFixed(1)}° · escaped ${totalEscaped}/${totalTraced} rays · ${blind ? 'one or more sample points invisible from any angle' : 'all 9 sample points visible'}`;
+                    const paramsLine = `R₁ = ${R1.toFixed(1)} mm (= 2·f₁) · base lift y₀ = ${yBase.toFixed(2)} mm · object top y = ${(yBase + p.h_obj).toFixed(2)} mm · vy2 = ${p.vy2.toFixed(1)} mm · 9 sample points (3 cols × 3 rows)`;
+                    showConicStatus(status, summary, paramsLine);
+                };
+
                 [
                     ['sim-f1',       'sim-f1-range'],
                     ['sim-f2',       'sim-f2-range'],
@@ -4548,6 +4772,7 @@
                     ['sim-sharp',    'sim-sharp-range'],
                     ['sim-rays',     'sim-rays-range'],
                     ['sim-bounces',  'sim-bounces-range'],
+                    ['sim-k1',       'sim-k1-range'],
                 ].forEach(([numId, rangeId]) => {
                     const num = document.getElementById(numId);
                     const slider = document.getElementById(rangeId);
@@ -4566,6 +4791,7 @@
                 document.getElementById('sim-run').addEventListener('click', run);
                 document.getElementById('sim-validate').addEventListener('click', validate);
                 document.getElementById('sim-optimize').addEventListener('click', optimize);
+                document.getElementById('sim-conic').addEventListener('click', runConic);
                 run();
 
                 return { run, validate };
