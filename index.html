@@ -1596,6 +1596,43 @@
             border-radius: var(--radius-sm);
             background: var(--color-bg-primary);
         }
+        .finding__section {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        .finding__label {
+            font-size: 0.75rem;
+            font-weight: var(--weight-semibold);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--color-text-secondary);
+            opacity: 0.7;
+        }
+        .finding__rules-out {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+        .finding__rules-out li {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.55rem;
+            font-size: 0.9375rem;
+            color: var(--color-text-secondary);
+            line-height: 1.5;
+        }
+        .finding__rules-out svg {
+            width: 0.95rem;
+            height: 0.95rem;
+            flex-shrink: 0;
+            margin-top: 0.25rem;
+            color: #E63946;
+            stroke-width: 2.5;
+        }
 
         @media (min-width: 48em) {
             :root { --container-padding: var(--space-lg); }
@@ -2482,8 +2519,31 @@
                             <path d="M 4 8 Q 16 18 28 8"/>
                             <circle cx="16" cy="16" r="2" fill="currentColor" stroke="none"/>
                         </svg>
-                        <h3 class="finding__title">The image forms where the two focal points meet.</h3>
-                        <p class="finding__body">Each parabolic mirror has its own focal point, and the mirascope only works because the two are made to coincide. The image cannot be moved higher or lower without redesigning the mirrors. The location is forced by the geometry, not chosen.</p>
+                        <h3 class="finding__title">Raise M2 by 1 cm, then pivot it. Does the image follow?</h3>
+
+                        <div class="finding__section">
+                            <span class="finding__label">The test</span>
+                            <p class="finding__body">Lift M2 ~1 cm off its seat, then tilt and pivot it in place. M1 and the object don't move.</p>
+                        </div>
+
+                        <div class="finding__section">
+                            <span class="finding__label">Result</span>
+                            <p class="finding__body">The floating image moves with the tilt, steered in real space by M2's orientation.</p>
+                        </div>
+
+                        <div class="finding__section">
+                            <span class="finding__label">Rules out</span>
+                            <ul class="finding__rules-out">
+                                <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>Image is at the aperture</li>
+                                <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>Image is at M2's focal point</li>
+                                <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>Image is a fixed feature of the assembled device</li>
+                            </ul>
+                        </div>
+
+                        <div class="finding__section">
+                            <span class="finding__label">Finding</span>
+                            <p class="finding__body">The image forms where rays from this object actually converge after both reflections. M2's orientation steers those rays, so the image moves with the tilt. Not a fixed focal location, but a live convergence point.</p>
+                        </div>
                     </article>
 
                     <article class="finding">
