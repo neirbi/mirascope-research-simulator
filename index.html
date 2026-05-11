@@ -1633,6 +1633,30 @@
             color: #E63946;
             stroke-width: 2.5;
         }
+        .finding__confirms {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+        .finding__confirms li {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.55rem;
+            font-size: 0.9375rem;
+            color: var(--color-text-secondary);
+            line-height: 1.5;
+        }
+        .finding__confirms svg {
+            width: 0.95rem;
+            height: 0.95rem;
+            flex-shrink: 0;
+            margin-top: 0.25rem;
+            color: var(--color-accent);
+            stroke-width: 2.5;
+        }
 
         @media (min-width: 48em) {
             :root { --container-padding: var(--space-lg); }
@@ -2543,6 +2567,43 @@
                         <div class="finding__section">
                             <span class="finding__label">Finding</span>
                             <p class="finding__body">The image forms where rays from this object actually converge after both reflections. M2's orientation steers those rays, so the image moves with the tilt. Not a fixed focal location, but a live convergence point.</p>
+                        </div>
+                    </article>
+
+                    <article class="finding">
+                        <svg class="finding__icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="16" cy="16" r="10"/>
+                            <circle cx="20" cy="13" r="2.5" fill="currentColor" stroke="none"/>
+                        </svg>
+                        <h3 class="finding__title">Place a sticker where the image appears. Does it occlude the frog?</h3>
+
+                        <div class="finding__section">
+                            <span class="finding__label">The test</span>
+                            <p class="finding__body">In standard config, the image appears at or above the aperture. Place a foam sticker on M1, centered on the frog's body.</p>
+                        </div>
+
+                        <div class="finding__section">
+                            <span class="finding__label">Result</span>
+                            <p class="finding__body">The frog moves behind the sticker and does not rise above it. The eye can focus on the sticker surface or the converging light independently, two distinct focal depths.</p>
+                        </div>
+
+                        <div class="finding__section">
+                            <span class="finding__label">Rules out</span>
+                            <ul class="finding__rules-out">
+                                <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>The image floats above any physical surface</li>
+                            </ul>
+                        </div>
+
+                        <div class="finding__section">
+                            <span class="finding__label">Confirms</span>
+                            <ul class="finding__confirms">
+                                <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 8.5 7 12.5 13 4.5"/></svg>The sticker (on M1) and the convergence point (at the aperture) are at different depths in space</li>
+                            </ul>
+                        </div>
+
+                        <div class="finding__section">
+                            <span class="finding__label">Finding</span>
+                            <p class="finding__body">The image is the light path, not a floating object. Blocking M1 blocks the image because M1 is where the light originates. The convergence point is geometrically real and sits above M1, confirmed by the eye being able to focus on each independently.</p>
                         </div>
                     </article>
 
