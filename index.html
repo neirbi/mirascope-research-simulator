@@ -4029,6 +4029,9 @@
                     const f2r = Math.round(best.p.f2);
                     const dsepr = Math.round(best.p.dsep);
                     const ar = Math.round(best.p.a);
+                    // K1won is also used when pushing the shape back to the slider
+                    // before run(), so it must be declared here, before setVal().
+                    const K1won = (best.K1 !== undefined && best.K1 !== null) ? best.K1 : -1;
                     const setVal = (id, v) => {
                         const el = document.getElementById(id);
                         const range = document.getElementById(id + '-range');
@@ -4079,7 +4082,6 @@
                     const capStr = spotCapDerived < 1 ? `${(spotCapDerived * 1000).toFixed(0)} µm` : `${spotCapDerived.toFixed(2)} mm`;
                     const modeStr = symmetric ? ' [symmetric mode: f₁=f₂=d_sep enforced]' : '';
                     summaryEl.textContent = `Intersect viewing angle: ${best.score.toFixed(1)}° (window [${best.intersectMin.toFixed(1)}°, ${best.intersectMax.toFixed(1)}°]). Worst spot RMS ${spotStr} (cap ${capStr} from viewing distance ${viewDist} mm × ${sharpArcmin} arcmin sharpness target).${modeStr} Scale curve (d_sep→angle): ${curve}.${expansionNote}`;
-                    const K1won = (best.K1 !== undefined && best.K1 !== null) ? best.K1 : -1;
                     const shapeStr = K1won === -1
                         ? 'M1 shape: parabola (K₁ = −1)'
                         : K1won === 0
